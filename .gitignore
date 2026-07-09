@@ -1,0 +1,37 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+*.pdb
+
+# Node / frontend
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+bun.lockb.bak
+
+# Tauri
+app/src-tauri/target
+app/src-tauri/gen
+
+# Playwright
+test-results
+playwright-report
+playwright/.cache
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea
+*.swp
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Temp
+/tmp
+*.tmp
