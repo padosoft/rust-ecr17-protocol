@@ -1,0 +1,32 @@
+[package]
+name = "ecr17-protocol"
+version = "0.1.0"
+description = "Italian ECR17 payment protocol (Nexi Group POS terminals) over LAN — pure-Rust protocol engine plus an async client and an optional tokio TCP transport."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+keywords = ["ecr17", "nexi", "pos", "payment", "protocol"]
+categories = ["network-programming", "api-bindings", "encoding"]
+
+[features]
+default = []
+# Real TCP transport (tokio). Pure consumers can use the codec/protocol/response
+# layers without pulling in an async runtime.
+tokio-transport = ["dep:tokio", "dep:async-trait", "tokio/net", "tokio/io-util", "tokio/time", "tokio/rt"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+async-trait = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true

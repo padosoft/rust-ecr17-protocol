@@ -14,6 +14,19 @@
   gh **2.88** (auth `lopadova`, git protocol **ssh**), copilot CLI **1.0.69**, git 2.55.
 - `tauri-cli` is **not preinstalled** → `cargo install tauri-cli` (or scaffold via
   `npm create tauri-app@latest`). Tauri 2 is the current major.
+- ⚠️ **The default `x86_64-pc-windows-msvc` toolchain is BROKEN on this machine** — the
+  linker fails with `LNK1104: cannot open 'msvcrt.lib'` (MSVC/Windows-SDK libs not on the
+  linker path; matches the RN reference's "MSVC VS18 broken" note). Fix: use the
+  **GNU** toolchain, which bundles its own MinGW linker + libs and needs no MSVC/SDK:
+  `rustup toolchain install stable-x86_64-pc-windows-gnu` (+ `rustup component add clippy
+  rustfmt --toolchain stable-x86_64-pc-windows-gnu`) then a **directory-local**
+  `rustup override set stable-x86_64-pc-windows-gnu` (NOT a committed `rust-toolchain.toml`
+  — CI runs on Linux and must keep its own default). With GNU, `cargo build/test/clippy/fmt`
+  and the `tokio-transport` feature all compile clean. NOTE: a Windows **Tauri** build may
+  still prefer MSVC (WebView2) — do the installer build in CI on `windows-latest` (proper
+  MSVC) rather than locally.
+- Latest crate versions (2026-07-10): tokio 1.52.3, serde 1.0.228, thiserror 2.0.18,
+  async-trait 0.1.89, serde_json 1.0.150, tauri 2.11.5.
 - `copilot` CLI is present for the local review loop. It **edits & commits in
   `--yolo`** — treat output as proposals to VERIFY, never trust blindly.
 - Repo remote: `git@github.com:padosoft/rust-ecr17-protocol.git`, default branch `main`.

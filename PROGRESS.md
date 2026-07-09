@@ -16,9 +16,9 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 
 ## Macro-task status
 - [ ] **MACRO 0 — Governance & scaffolding** (`chore/bootstrap`)  ← IN PROGRESS
-  - [x] T0.1 Process assets (.claude rules/skills, AGENTS/CLAUDE/LESSON/PROGRESS/PLAN)  ← doing
-  - [ ] T0.2 Cargo workspace + `ecr17-protocol` crate skeleton compiling
-  - [ ] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired
+  - [x] T0.1 Process assets (.claude rules/skills, AGENTS/CLAUDE/LESSON/PROGRESS/PLAN)  ✅
+  - [x] T0.2 Cargo workspace + `ecr17-protocol` crate skeleton compiling  ✅ (build/test/clippy/fmt green; GNU toolchain)
+  - [ ] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired  ← doing
   - [ ] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) green
 - [ ] MACRO 1 — Protocol primitives (`feat/protocol-primitives`): lrc, codec
 - [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
@@ -31,9 +31,10 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. Design approved. Branch `chore/bootstrap` created off `main`
-(only Initial commit). crates.io name `ecr17-protocol` verified free. Writing T0.1
-process assets. NEXT: T0.2 Cargo workspace scaffold.
+Session 2026-07-10. Branch `chore/bootstrap`. T0.1 (process assets) + T0.2 (Cargo
+workspace, `ecr17-protocol` crate compiling with GNU toolchain — MSVC is broken here)
+DONE and committed. crates.io name `ecr17-protocol` verified free. NEXT: T0.3 scaffold
+the Tauri app (React19+TS+Vite+Tauri2) + wire Vitest + Playwright with a trivial green test.
 
 ## Notes / decisions
 - Frontend: React 19 + TS + Vite (closest port of RN UI; Playwright + Vitest).
