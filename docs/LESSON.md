@@ -27,6 +27,20 @@
   MSVC) rather than locally.
 - Latest crate versions (2026-07-10): tokio 1.52.3, serde 1.0.228, thiserror 2.0.18,
   async-trait 0.1.89, serde_json 1.0.150, tauri 2.11.5.
+- ⚠️ **The Tauri backend does NOT build locally on this machine** — two compounding
+  reasons: (1) the GNU toolchain compiles Windows resources with `windres`, which Tauri
+  officially doesn't support (Tauri wants MSVC on Windows); (2) the repo path contains a
+  **space** (`…\Visual Basic\…`) and `windres`/`cc1` choke on the unquoted path
+  (`cc1.exe: warning: C:\Users\…\Visual: not a directory` → `tauri-winres` panics). This
+  is in the `tauri-build`→`tauri-winres` build script, NOT our code. **CI is clean** (no
+  space in the path; Linux/`windows-latest` MSVC). Consequence: verify the Tauri backend
+  via **CI** (`cargo check`/build on ubuntu with webkit2gtk, and the installer matrix on
+  the release job), and develop the backend logic behind plain unit-testable functions.
+  Frontend tooling (Vite build, Vitest, Playwright) runs fine locally.
+- Frontend stack scaffolded (T0.3): React 19.1 + Vite 7 + Tauri 2 + TS 5.8; test stack
+  Vitest 3 (jsdom + Testing Library) + Playwright 1.5x (chromium) + Biome 2. E2E drives the
+  Vite dev server on the Tauri-fixed port 1420; real UI scenarios mock the Tauri IPC with
+  `@tauri-apps/api/mocks`.
 - `copilot` CLI is present for the local review loop. It **edits & commits in
   `--yolo`** — treat output as proposals to VERIFY, never trust blindly.
 - Repo remote: `git@github.com:padosoft/rust-ecr17-protocol.git`, default branch `main`.

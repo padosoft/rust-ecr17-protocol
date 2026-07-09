@@ -18,8 +18,8 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 - [ ] **MACRO 0 — Governance & scaffolding** (`chore/bootstrap`)  ← IN PROGRESS
   - [x] T0.1 Process assets (.claude rules/skills, AGENTS/CLAUDE/LESSON/PROGRESS/PLAN)  ✅
   - [x] T0.2 Cargo workspace + `ecr17-protocol` crate skeleton compiling  ✅ (build/test/clippy/fmt green; GNU toolchain)
-  - [ ] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired  ← doing
-  - [ ] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) green
+  - [x] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired  ✅ (typecheck+vitest+build+playwright green locally; backend built in CI only)
+  - [ ] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) green  ← doing
 - [ ] MACRO 1 — Protocol primitives (`feat/protocol-primitives`): lrc, codec
 - [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
 - [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
@@ -31,10 +31,11 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. Branch `chore/bootstrap`. T0.1 (process assets) + T0.2 (Cargo
-workspace, `ecr17-protocol` crate compiling with GNU toolchain — MSVC is broken here)
-DONE and committed. crates.io name `ecr17-protocol` verified free. NEXT: T0.3 scaffold
-the Tauri app (React19+TS+Vite+Tauri2) + wire Vitest + Playwright with a trivial green test.
+Session 2026-07-10. Branch `chore/bootstrap`. T0.1–T0.3 DONE & committed. Tauri app
+scaffolded in `app/` (excluded from the Cargo workspace); frontend guardrails green
+locally (typecheck, Vitest 1✓, Vite build, Playwright 1✓). Tauri backend build is
+CI-only here (GNU/windres + spaced path — see LESSON). NEXT: T0.4 add CI workflows
+(`rust-tests`, `frontend-checks`, `e2e`) + push branch + open first PR toward main.
 
 ## Notes / decisions
 - Frontend: React 19 + TS + Vite (closest port of RN UI; Playwright + Vitest).
