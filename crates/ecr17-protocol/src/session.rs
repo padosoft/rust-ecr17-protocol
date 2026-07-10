@@ -314,6 +314,14 @@ impl<T: Transport> Ecr17Session<T> {
                 if self.rx_buffer.len() < 3 {
                     return None; // wait for ETX + LRC
                 }
+                // A well-formed control frame is `ctrl + ETX + LRC`. If the byte after the
+                // lead isn't ETX, this 0x06/0x15 is stray/desynced data, not a control
+                // frame — drop it and resync rather than completing a handshake on a lone
+                // byte that merely happens to equal ACK/NAK.
+                if self.rx_buffer[1] != ETX {
+                    self.rx_buffer.remove(0);
+                    continue;
+                }
                 return Some(self.rx_buffer.drain(0..3).collect());
             }
             if first == STX {
@@ -437,6 +445,22 @@ mod tests {
         assert_eq!(result.payload, RESULT.as_bytes());
         assert_eq!(session.transport().application_request_count(), 1);
         assert!(sent_any(session.transport(), ACK));
+    }
+
+    // A stray 0x06 byte (not followed by ETX) must be resynced past, not mistaken for an
+    // ACK that prematurely completes the handshake.
+    #[tokio::test]
+    async fn stray_ack_byte_is_resynced_not_a_false_ack() {
+        let c = codec();
+        let mut response = vec![ACK, 0xFF]; // stray lead byte, NOT ETX-framed
+        response.extend(c.encode_control(ACK)); // the real ACK frame
+        response.extend(c.encode_application(RESULT.as_bytes()));
+        let mut t = FakeTransport::new();
+        t.enqueue_response(response);
+        let mut session = Ecr17Session::new(t, fast_config());
+
+        let result = session.exchange("123456780P...").await.unwrap();
+        assert_eq!(result.payload, RESULT.as_bytes());
     }
 
     #[tokio::test]
