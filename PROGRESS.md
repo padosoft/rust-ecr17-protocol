@@ -41,4 +41,6 @@ CI-only here (GNU/windres + spaced path — see LESSON). NEXT: T0.4 add CI workf
 - Frontend: React 19 + TS + Vite (closest port of RN UI; Playwright + Vitest).
 - Crate: single `ecr17-protocol` (core + tokio transport behind feature). App not published to crates.io.
 - Release: crates.io lib + Tauri installers attached to GitHub Release.
-- `tauri-cli` not yet installed on this machine — install before T0.3.
+- `tauri-cli` not installed on the dev box — only needed to run `tauri dev` / `tauri build`
+  locally (deferred: the desktop/installer build runs in CI; local Tauri build is blocked
+  anyway by GNU/windres + the spaced repo path — see docs/LESSON.md).

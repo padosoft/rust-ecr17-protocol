@@ -34,3 +34,9 @@ jobs:
 
       - name: Build (tokio-transport feature)
         run: cargo build --workspace --features tokio-transport
+
+      - name: Doc (deny broken intra-doc links)
+        env:
+          RUSTDOCFLAGS: -D rustdoc::broken_intra_doc_links
+        run: cargo doc --no-deps --workspace --all-features
+
