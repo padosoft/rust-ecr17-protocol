@@ -2,9 +2,11 @@
 //!
 //! Each parser takes the application payload as text — the bytes between `STX` and `ETX`
 //! ([`crate::codec::DecodedPacket::payload`], a `Vec<u8>`) decoded to a `&str` by the
-//! caller — and returns a plain raw struct with string fields at the exact 1-based spec
-//! offsets. The `client` layer maps these raw structs onto the typed [`crate::types`]
-//! results (enum/amount/date conversions).
+//! caller — and returns a raw struct whose fields sit at the exact 1-based spec offsets.
+//! Fields are mostly the raw strings as received, plus a few derived conveniences (the
+//! `outcome` [`TransactionOutcome`], the numeric `status`, and boolean flags). The
+//! `client` layer maps these raw structs onto the fully typed [`crate::types`] results
+//! (enum/amount/date conversions).
 //!
 //! Parsing is **defensive**: a field starting beyond the payload comes back empty (and a
 //! partial field is clamped) rather than panicking, so a short/truncated response degrades
