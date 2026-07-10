@@ -28,14 +28,8 @@
 #![warn(missing_debug_implementations)]
 
 // Layers are added incrementally per the implementation plan (docs/PLAN.md).
-// MACRO 1+ will populate these modules.
+pub mod codec;
+pub mod lrc;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn scaffold_builds_and_tests_run() {
-        // Placeholder guardrail proving the crate compiles and the test harness runs.
-        // Replaced by real layer tests starting at MACRO 1.
-        assert_eq!(2 + 2, 4);
-    }
-}
+pub use codec::{DecodedPacket, PacketCodec, PacketType};
+pub use lrc::LrcMode;
