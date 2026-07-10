@@ -92,7 +92,11 @@ impl FakeTransport {
 #[async_trait]
 impl Transport for FakeTransport {
     async fn connect(&mut self) -> Result<()> {
+        // A real reconnect establishes a fresh socket, so clear any simulated drop state
+        // (this is what the session's client relies on to recover after a drop).
         self.connected = true;
+        self.dropped = false;
+        self.disconnect_on_request = false;
         Ok(())
     }
 
@@ -135,25 +139,33 @@ impl Transport for FakeTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codec::{PacketCodec, ACK};
+    use crate::lrc::LrcMode;
+
+    // A realistic on-the-wire control frame (`ctrl + ETX + LRC`), as the session sends/
+    // receives — not a bare 0x06 byte.
+    fn ack_frame() -> Vec<u8> {
+        PacketCodec::new(LrcMode::Std).encode_control(ACK)
+    }
 
     #[tokio::test]
     async fn delivers_enqueued_response_on_application_send() {
         let mut t = FakeTransport::new();
-        t.enqueue_response(vec![0x06]); // an ACK
+        t.enqueue_response(ack_frame());
         t.send(&[FakeTransport::STX, b'X']).await.unwrap();
-        assert_eq!(t.recv().await.unwrap(), vec![0x06]);
+        assert_eq!(t.recv().await.unwrap(), ack_frame());
         assert_eq!(t.application_request_count(), 1);
     }
 
     #[tokio::test]
     async fn control_send_does_not_consume_a_response() {
         let mut t = FakeTransport::new();
-        t.enqueue_response(vec![0x06]);
-        t.send(&[0x06]).await.unwrap(); // an ACK control frame, not an app request
+        t.enqueue_response(ack_frame());
+        t.send(&ack_frame()).await.unwrap(); // a control frame, not an app request
         assert_eq!(t.application_request_count(), 0);
         // The response is still queued for the next real application request.
         t.send(&[FakeTransport::STX]).await.unwrap();
-        assert_eq!(t.recv().await.unwrap(), vec![0x06]);
+        assert_eq!(t.recv().await.unwrap(), ack_frame());
     }
 
     #[tokio::test]
@@ -165,8 +177,8 @@ mod tests {
         assert_eq!(t.recv().await, Err(Ecr17Error::Disconnected));
         // After a reconnect the transport delivers again.
         t.rearm();
-        t.enqueue_response(vec![0x06]);
+        t.enqueue_response(ack_frame());
         t.send(&[FakeTransport::STX]).await.unwrap();
-        assert_eq!(t.recv().await.unwrap(), vec![0x06]);
+        assert_eq!(t.recv().await.unwrap(), ack_frame());
     }
 }

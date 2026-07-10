@@ -5,7 +5,8 @@
 //! messages, and `ACK`/`NAK`s incoming frames per their LRC validity. One exchange runs at
 //! a time (ECR17 is one transaction per terminal). Port of the reference C++ `Ecr17Session`.
 //!
-//! 💰 The session throws [`Ecr17Error::Disconnected`] on a mid-exchange drop and resets its
+//! 💰 The session errors on a mid-exchange drop (propagating the transport's error, e.g.
+//! [`Ecr17Error::Disconnected`] or [`Ecr17Error::Transport`]) and resets its
 //! per-transaction state at the start of every exchange, so it is reusable across
 //! reconnects. It never blindly re-sends: the money-safe retry decision lives in
 //! [`crate::retry`] and is applied by the client, and a lost response is recovered via
@@ -55,7 +56,9 @@ type EventCallback = Box<dyn Fn(String) + Send + 'static>;
 enum WaitOutcome {
     Frame(DecodedPacket),
     Timeout,
-    Disconnected,
+    /// The transport errored; carries the underlying error so transport-level details
+    /// (e.g. `Ecr17Error::Transport { kind, message }`) are preserved, not flattened.
+    Disconnected(Ecr17Error),
 }
 
 /// Drives ECR17 exchanges over a [`Transport`] `T`.
@@ -208,7 +211,7 @@ impl<T: Transport> Ecr17Session<T> {
                     // Ignore progress / unknown frames that may precede the ACK.
                     _ => {}
                 },
-                WaitOutcome::Disconnected => return Err(Ecr17Error::Disconnected),
+                WaitOutcome::Disconnected(e) => return Err(e),
                 // Timed out waiting; loop re-checks the deadline and retransmits.
                 WaitOutcome::Timeout => {}
             }
@@ -243,7 +246,7 @@ impl<T: Transport> Ecr17Session<T> {
                 }
                 match self.wait_for_frame(remaining).await {
                     WaitOutcome::Frame(p) => p,
-                    WaitOutcome::Disconnected => return Err(Ecr17Error::Disconnected),
+                    WaitOutcome::Disconnected(e) => return Err(e),
                     WaitOutcome::Timeout => continue,
                 }
             };
@@ -293,7 +296,7 @@ impl<T: Transport> Ecr17Session<T> {
                     _ => {}
                 },
                 // Idle (no more receipts) or dropped: stop draining.
-                WaitOutcome::Timeout | WaitOutcome::Disconnected => return,
+                WaitOutcome::Timeout | WaitOutcome::Disconnected(_) => return,
             }
         }
     }
@@ -342,7 +345,7 @@ impl<T: Transport> Ecr17Session<T> {
             }
             match tokio::time::timeout(remaining, self.transport.recv()).await {
                 Ok(Ok(bytes)) => self.rx_buffer.extend_from_slice(&bytes),
-                Ok(Err(_dropped)) => return WaitOutcome::Disconnected,
+                Ok(Err(dropped)) => return WaitOutcome::Disconnected(dropped),
                 Err(_elapsed) => return WaitOutcome::Timeout,
             }
         }
