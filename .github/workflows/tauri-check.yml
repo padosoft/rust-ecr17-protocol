@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check:
-    name: cargo check (Tauri backend)
+    name: Tauri backend (fmt · clippy · test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

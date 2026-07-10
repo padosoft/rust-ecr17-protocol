@@ -70,7 +70,13 @@ async fn configure(
     config: Ecr17Config,
 ) -> Result<(), String> {
     let client = build_client(&app, config);
-    *state.client.lock().await = Some(client);
+    let mut guard = state.client.lock().await;
+    // Cleanly close any previous connection before replacing the client, so reconfiguring
+    // doesn't drop a live TCP stream abruptly.
+    if let Some(old) = guard.as_mut() {
+        old.disconnect().await;
+    }
+    *guard = Some(client);
     Ok(())
 }
 
@@ -188,12 +194,21 @@ async fn vas(state: State<'_, AppState>, xml_request: String) -> Result<VasResul
     c.vas(&xml_request).await.map_err(err)
 }
 
+/// Scaffold placeholder invoked by the default `App.tsx`; removed in MACRO 7 with the
+/// scaffold UI. Kept for now so the scaffold's Greet button doesn't error before the real
+/// control panel lands.
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {name}! You've been greeted from Rust!")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            greet,
             configure,
             configuration,
             connect,
