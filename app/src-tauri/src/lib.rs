@@ -257,6 +257,16 @@ mod tests {
     }
 
     #[test]
+    fn config_serializes_camel_case_for_the_ui() {
+        // configuration() serializes the stored config back to the UI — keys must be camelCase.
+        let cfg: Ecr17Config =
+            serde_json::from_str(r#"{"host":"h","terminalId":"t","cashRegisterId":"c"}"#).unwrap();
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(json.contains(r#""terminalId":"t""#), "{json}");
+        assert!(json.contains(r#""cashRegisterId":"c""#), "{json}");
+    }
+
+    #[test]
     fn payment_request_deserializes_from_ui_payload() {
         let json = r#"{"amountCents":650,"paymentType":"credit"}"#;
         let req: PaymentRequest = serde_json::from_str(json).unwrap();
