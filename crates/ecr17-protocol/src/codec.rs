@@ -106,9 +106,16 @@ impl PacketCodec {
 
     /// Decodes exactly one frame from `data`.
     ///
-    /// A buffer holding more than one frame, trailing bytes after the LRC, a missing
-    /// LRC, or a progress frame not terminated by `EOT` all decode to
-    /// [`PacketType::Unknown`] — the codec never silently drops or coalesces frames.
+    /// `ACK`/`NAK` are recognized by their **lead byte** only: on the wire a control
+    /// frame is `ctrl + ETX + LRC` (what [`encode_control`](Self::encode_control)
+    /// produces and what the session frames), so `[ACK, ETX, LRC]` decodes to
+    /// [`PacketType::Ack`]. This leniency is required — the session hands `decode` the
+    /// full 3-byte control frame, and requiring a bare 1-byte `ACK` would make every
+    /// transaction's ACK handshake fail. See `docs/LESSON.md`.
+    ///
+    /// For `STX`/`SOH` frames the buffer must be exactly one frame: more than one frame,
+    /// trailing bytes after the LRC, a missing LRC, or a progress frame not terminated by
+    /// `EOT` all decode to [`PacketType::Unknown`].
     #[must_use]
     pub fn decode(&self, data: &[u8]) -> DecodedPacket {
         let Some(&first) = data.first() else {
@@ -219,6 +226,23 @@ mod tests {
         let decoded = PacketCodec::new(LrcMode::Std).decode(&[NAK]);
         assert_eq!(decoded.packet_type, PacketType::Nak);
         assert!(decoded.valid_lrc);
+    }
+
+    // 💰 Money-critical invariant: the real 3-byte control frame `ctrl + ETX + LRC`
+    // (what encode_control produces and what the session frames) MUST decode as
+    // ACK/NAK by lead byte. Requiring a bare 1-byte control frame here would make every
+    // transaction's ACK handshake fail. Do NOT "tighten" this to data.len() == 1.
+    #[test]
+    fn decode_full_control_frame_from_encode_control() {
+        let codec = PacketCodec::new(LrcMode::Std);
+        assert_eq!(
+            codec.decode(&codec.encode_control(ACK)).packet_type,
+            PacketType::Ack
+        );
+        assert_eq!(
+            codec.decode(&codec.encode_control(NAK)).packet_type,
+            PacketType::Nak
+        );
     }
 
     #[test]
