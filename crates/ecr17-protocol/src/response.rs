@@ -496,6 +496,31 @@ mod tests {
     }
 
     #[test]
+    fn pre_auth_negative() {
+        // KO layout: result@11 error@13(24) action@37(3) reserved(8) cardType@48
+        // reserved(23) acquirer@72(11) stan@83(6) onlineId@89(6).
+        let p = format!(
+            "{}0e01{}100{}3{}{}{}{}",
+            a("12345678", 8),
+            a("NEGATO", 24),
+            n("", 8),
+            n("", 23),
+            a("ACQ", 11),
+            n("55", 6),
+            n("66", 6)
+        );
+        let r = parse_pre_auth(&p);
+        assert_eq!(r.outcome, TransactionOutcome::Ko);
+        assert_eq!(r.error_description, "NEGATO");
+        assert_eq!(r.action_code, "100");
+        assert_eq!(r.card_type, "3"); // only read on the KO layout
+        assert_eq!(r.acquirer_id, "ACQ");
+        assert_eq!(r.stan, "000055");
+        assert_eq!(r.online_id, "000066");
+        assert_eq!(r.pan, ""); // no PAN on a declined pre-auth
+    }
+
+    #[test]
     fn vas() {
         let xml = "<ecrres><p k=\"RESPID\">0</p><p k=\"RESPMSG\">OK-APPROVED</p>\
                    <p k=\"ORDER_ID\">ABC123</p></ecrres>";
