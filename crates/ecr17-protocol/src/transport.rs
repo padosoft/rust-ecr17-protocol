@@ -36,24 +36,37 @@ pub trait Transport: Send {
 /// starting with `STX`); control sends (`ACK`/`NAK`) are only recorded. This lets a test
 /// script "ACK + result", "NAK then ACK+result", progress/receipt streams, mid-exchange
 /// drops, or no reply at all (to exercise timeouts) with no real sockets or threads.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FakeTransport {
     connected: bool,
-    dropped: bool,
     disconnect_on_request: bool,
     sent: Vec<Vec<u8>>,
     responses: VecDeque<Vec<u8>>,
     pending: VecDeque<Vec<u8>>,
 }
 
+impl Default for FakeTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FakeTransport {
     /// Start of an application frame.
     pub const STX: u8 = 0x02;
 
-    /// Creates an empty fake transport.
+    /// Creates a fake transport that is already connected (a test double is "talking to a
+    /// terminal", so it starts connected; call [`disconnect`](Transport::disconnect) or
+    /// [`disconnect_on_next_request`](Self::disconnect_on_next_request) to model a drop).
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            connected: true,
+            disconnect_on_request: false,
+            sent: Vec::new(),
+            responses: VecDeque::new(),
+            pending: VecDeque::new(),
+        }
     }
 
     /// Queues a scripted terminal reply, delivered on the next application request.
@@ -66,9 +79,8 @@ impl FakeTransport {
         self.disconnect_on_request = true;
     }
 
-    /// Simulates a successful reconnect: clears the drop flags and marks connected.
+    /// Simulates a successful reconnect: clears the drop flag and marks connected.
     pub fn rearm(&mut self) {
-        self.dropped = false;
         self.disconnect_on_request = false;
         self.connected = true;
     }
@@ -95,7 +107,6 @@ impl Transport for FakeTransport {
         // A real reconnect establishes a fresh socket, so clear any simulated drop state
         // (this is what the session's client relies on to recover after a drop).
         self.connected = true;
-        self.dropped = false;
         self.disconnect_on_request = false;
         Ok(())
     }
@@ -109,12 +120,14 @@ impl Transport for FakeTransport {
     }
 
     async fn send(&mut self, bytes: &[u8]) -> Result<()> {
+        if !self.connected {
+            return Err(Ecr17Error::Disconnected);
+        }
         self.sent.push(bytes.to_vec());
         let is_application_request = bytes.first() == Some(&Self::STX);
         if is_application_request {
             if self.disconnect_on_request {
-                self.dropped = true;
-                self.connected = false;
+                self.connected = false; // the send lands on a socket that then drops
             } else if let Some(next) = self.responses.pop_front() {
                 self.pending.push_back(next);
             }
@@ -126,10 +139,10 @@ impl Transport for FakeTransport {
         if let Some(bytes) = self.pending.pop_front() {
             return Ok(bytes);
         }
-        if self.dropped {
+        if !self.connected {
             return Err(Ecr17Error::Disconnected);
         }
-        // Nothing to deliver and not dropped: pend forever. The session always calls recv
+        // Connected but nothing to deliver: pend forever. The session always calls recv
         // inside a timeout, which cancels this future when the wait elapses.
         std::future::pending::<()>().await;
         unreachable!("pending() never resolves")
@@ -164,6 +177,21 @@ mod tests {
         t.send(&ack_frame()).await.unwrap(); // a control frame, not an app request
         assert_eq!(t.application_request_count(), 0);
         // The response is still queued for the next real application request.
+        t.send(&[FakeTransport::STX]).await.unwrap();
+        assert_eq!(t.recv().await.unwrap(), ack_frame());
+    }
+
+    #[tokio::test]
+    async fn send_and_recv_require_a_connection() {
+        let mut t = FakeTransport::new();
+        assert!(t.is_connected()); // a fresh fake starts connected
+        t.disconnect().await;
+        assert!(!t.is_connected());
+        assert_eq!(t.send(&[FakeTransport::STX]).await, Err(Ecr17Error::Disconnected));
+        assert_eq!(t.recv().await, Err(Ecr17Error::Disconnected));
+        // connect() restores it.
+        t.connect().await.unwrap();
+        t.enqueue_response(ack_frame());
         t.send(&[FakeTransport::STX]).await.unwrap();
         assert_eq!(t.recv().await.unwrap(), ack_frame());
     }
