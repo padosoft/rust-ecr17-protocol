@@ -90,7 +90,21 @@
   (`@tauri-apps/api/mocks` `mockIPC`) for deterministic UI coverage without a POS.
 
 ## Review/CI learnings
-- (to be filled after the first Copilot/CI cycles)
+- **Copilot local review (T0.4 bootstrap):** two comments, both correctly REJECTED after
+  verification (receiving-code-review discipline):
+  1. "`app/package-lock.json` missing → `npm ci` fails" — FALSE POSITIVE: the lockfile IS
+     committed; Copilot only saw the *focused* diff (I deliberately excluded the huge
+     lockfile from it). Lesson: when handing Copilot a focused diff, tell it which files
+     were intentionally omitted, or it will flag them as missing.
+  2. "`exclude = ['app']` in the root workspace is a no-op because `members` is explicit"
+     — WRONG for a *nested* package: `app/src-tauri` lives under the workspace root, so
+     without `exclude` cargo errors "current package believes it's in a workspace when
+     it's not". Verified: `cargo metadata` from `app/src-tauri` runs cleanly *because of*
+     the exclude. Keep it.
+- Copilot `--autopilot --yolo -p "/review …"` with an explicit "do NOT edit, only report,
+  <=N lines" instruction behaved read-only (0 file changes) and finished in ~1m40s on a
+  ~560-line focused diff. Feeding the full 10k-line branch diff (mostly lockfile) would
+  have timed out — keep the review diff focused on hand-authored files.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the
