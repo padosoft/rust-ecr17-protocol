@@ -131,6 +131,29 @@
 - Principle: for a faithful port of tested money code, do NOT speculatively add parse offsets
   from docs we can't verify in-repo — a documented gap beats an untested wrong offset.
 
+## Async session port (MACRO 4)
+- The C++ session used a background reader THREAD + condition_variable. The Rust async
+  port needs **no reader task**: the session `await`s `transport.recv()` when it needs
+  bytes, wrapped in `tokio::time::timeout` for ack/response deadlines. Sequential
+  send→recv within an exchange (ECR17 is one transaction at a time) → the `Transport`
+  trait needs no interior concurrency.
+- `FakeTransport::recv` when idle does `std::future::pending().await` — the session's
+  `timeout(remaining, recv())` cancels it, giving deterministic timeout tests without real
+  waits (except the tiny 40ms fast-config deadlines).
+- Money-safety reset: the Rust session holds NO persistent `disconnected` flag (a drop is
+  observed transiently as `recv() -> Err(Disconnected)`), so `reset_for_new_transaction`
+  only clears `rx_buffer` + `pending_result`. This makes the session reusable across
+  reconnects (regression `recovers_and_succeeds_after_reconnect`) — a stale flag can never
+  block a fresh transaction.
+- `retry.rs::should_retry_after_reconnect` is a PURE function (financial → never retried);
+  the SESSION just errors on drop, and the CLIENT (MACRO 5) applies the retry decision +
+  reconnect. Keep the money decision in one tiny, unit-locked place.
+- Made `tokio` + `async-trait` non-optional (features time/sync/rt/macros) so the session/
+  transport/retry are always testable with plain `cargo test`; the `tokio-transport`
+  feature now gates ONLY the real TCP socket (net/io-util). `From<io::Error>` for
+  `Ecr17Error` is feature-gated; the `Transport { kind: io::ErrorKind, message }` variant is
+  always present (io::ErrorKind is Clone+Eq, preserving the error derives).
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the
