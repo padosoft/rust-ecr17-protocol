@@ -47,7 +47,9 @@ impl Transport for TcpTransport {
                 kind: std::io::ErrorKind::TimedOut,
                 message: format!("connect to {addr} timed out"),
             })??;
-        let _ = stream.set_nodelay(true); // low latency for the request/response handshake
+        // Best-effort latency optimization for the request/response handshake. A failure
+        // here is non-fatal (Nagle stays on), so we intentionally do not fail connect().
+        let _ = stream.set_nodelay(true);
         self.stream = Some(stream);
         Ok(())
     }

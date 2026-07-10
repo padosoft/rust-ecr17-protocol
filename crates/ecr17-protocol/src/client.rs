@@ -23,7 +23,10 @@ use crate::types::{
     TransactionEntryMode, VasResult,
 };
 
-type SharedCb<T> = Arc<Mutex<Option<Box<dyn Fn(T) + Send + 'static>>>>;
+// The callback is stored behind an inner `Arc` so a caller can be cloned OUT of the mutex
+// and invoked with the lock released — never hold the lock across a user callback (that
+// would deadlock if the callback re-enters, e.g. re-registers itself).
+type SharedCb<T> = Arc<Mutex<Option<Arc<dyn Fn(T) + Send + Sync + 'static>>>>;
 
 /// High-level ECR17 client over a [`Transport`] `T`.
 pub struct Ecr17Client<T: Transport> {
@@ -53,13 +56,15 @@ impl<T: Transport> Ecr17Client<T> {
 
         let p = Arc::clone(&on_progress);
         session.set_on_progress(move |message| {
-            if let Some(cb) = &*p.lock().unwrap() {
+            let cb = p.lock().unwrap().clone(); // clone the Arc, then release the lock
+            if let Some(cb) = cb {
                 cb(ProgressEvent { message });
             }
         });
         let r = Arc::clone(&on_receipt_line);
         session.set_on_receipt_line(move |text| {
-            if let Some(cb) = &*r.lock().unwrap() {
+            let cb = r.lock().unwrap().clone();
+            if let Some(cb) = cb {
                 cb(ReceiptLine { text });
             }
         });
@@ -80,18 +85,21 @@ impl<T: Transport> Ecr17Client<T> {
     }
 
     /// Registers the progress-update listener (`SOH` frames during a procedure).
-    pub fn set_on_progress(&self, cb: impl Fn(ProgressEvent) + Send + 'static) {
-        *self.on_progress.lock().unwrap() = Some(Box::new(cb));
+    pub fn set_on_progress(&self, cb: impl Fn(ProgressEvent) + Send + Sync + 'static) {
+        *self.on_progress.lock().unwrap() = Some(Arc::new(cb));
     }
 
     /// Registers the receipt-line listener (`S` messages when ECR printing is on).
-    pub fn set_on_receipt_line(&self, cb: impl Fn(ReceiptLine) + Send + 'static) {
-        *self.on_receipt_line.lock().unwrap() = Some(Box::new(cb));
+    pub fn set_on_receipt_line(&self, cb: impl Fn(ReceiptLine) + Send + Sync + 'static) {
+        *self.on_receipt_line.lock().unwrap() = Some(Arc::new(cb));
     }
 
     /// Registers the connection-state listener.
-    pub fn set_on_connection_state_change(&self, cb: impl Fn(ConnectionState) + Send + 'static) {
-        *self.on_connection_state_change.lock().unwrap() = Some(Box::new(cb));
+    pub fn set_on_connection_state_change(
+        &self,
+        cb: impl Fn(ConnectionState) + Send + Sync + 'static,
+    ) {
+        *self.on_connection_state_change.lock().unwrap() = Some(Arc::new(cb));
     }
 
     /// Borrows the underlying session's transport (read-only).
@@ -151,7 +159,7 @@ impl<T: Transport> Ecr17Client<T> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_reversal(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.stan.as_deref().unwrap_or("000000"),
         )?;
         let pkt = self.run_transaction(&payload, None, false).await?;
@@ -163,7 +171,7 @@ impl<T: Transport> Ecr17Client<T> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_pre_auth(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.amount_cents,
             request.payment_type.unwrap_or_default().as_digit(),
             request.card_already_present.unwrap_or(false),
@@ -184,7 +192,7 @@ impl<T: Transport> Ecr17Client<T> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_incremental(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.amount_cents,
             &request.original_pre_auth_code,
             false,
@@ -202,7 +210,7 @@ impl<T: Transport> Ecr17Client<T> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_pre_auth_closure(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.amount_cents,
             &request.original_pre_auth_code,
             false,
@@ -220,7 +228,7 @@ impl<T: Transport> Ecr17Client<T> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_card_verification(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.payment_type.unwrap_or_default().as_digit(),
             request.tokenization.is_some(),
         )?;
@@ -281,6 +289,10 @@ impl<T: Transport> Ecr17Client<T> {
     }
 
     /// VAS (`K`).
+    ///
+    /// Reads a single VAS response message (as the reference does). A multi-part response
+    /// (`more_messages` set) is not concatenated here — that is a documented limitation to
+    /// validate against a real terminal before implementing.
     pub async fn vas(&mut self, xml_request: &str) -> Result<VasResult> {
         self.ensure_connected().await?;
         let payload = crate::protocol::build_vas(
@@ -294,10 +306,8 @@ impl<T: Transport> Ecr17Client<T> {
 
     // --- internals ---
 
-    fn cash_register_id_or(&self, override_id: Option<&str>) -> String {
-        override_id
-            .unwrap_or(&self.config.cash_register_id)
-            .to_string()
+    fn cash_register_id_or<'a>(&'a self, override_id: Option<&'a str>) -> &'a str {
+        override_id.unwrap_or(&self.config.cash_register_id)
     }
 
     fn payment_payload(&self, code: char, request: &PaymentRequest) -> Result<String> {
@@ -308,7 +318,7 @@ impl<T: Transport> Ecr17Client<T> {
         };
         builder(
             &self.config.terminal_id,
-            &self.cash_register_id_or(request.cash_register_id.as_deref()),
+            self.cash_register_id_or(request.cash_register_id.as_deref()),
             request.amount_cents,
             request.payment_type.unwrap_or_default().as_digit(),
             request.card_already_present.unwrap_or(false),
@@ -318,7 +328,8 @@ impl<T: Transport> Ecr17Client<T> {
     }
 
     fn emit_state(&self, state: ConnectionState) {
-        if let Some(cb) = &*self.on_connection_state_change.lock().unwrap() {
+        let cb = self.on_connection_state_change.lock().unwrap().clone();
+        if let Some(cb) = cb {
             cb(state);
         }
     }
@@ -487,6 +498,10 @@ fn map_payment(p: &response::PaymentResponse) -> PaymentResult {
         stan: opt_str(&p.stan),
         online_id: opt_str(&p.online_id),
         error_description: opt_str(&p.error_description),
+        // DCC values are exposed as the terminal's RAW integers (rate/amount unscaled),
+        // with `precision` giving the number of implied decimals — matching the reference.
+        // Consumers scale with `precision` (e.g. rate 12345 @ precision 4 = 1.2345); the
+        // library does not scale so no rounding is imposed on money values.
         currency_exchange: p.currency.applied.then(|| CurrencyExchange {
             applied: true,
             rate: opt_f64(&p.currency.rate),
@@ -599,7 +614,7 @@ fn raw_datetime_to_iso(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codec::{PacketCodec, ACK};
+    use crate::codec::{PacketCodec, ACK, EOT, SOH};
     use crate::error::Ecr17Error;
     use crate::lrc::LrcMode;
     use crate::transport::FakeTransport;
@@ -668,6 +683,38 @@ mod tests {
         assert_eq!(result.card_type, Some(CardType::Credit));
         assert_eq!(result.auth_code.as_deref(), Some("AUTH01"));
         assert_eq!(result.stan.as_deref(), Some("000042"));
+    }
+
+    #[tokio::test]
+    async fn client_forwards_progress_to_listener() {
+        let c = PacketCodec::new(LrcMode::Std);
+        let mut response = c.encode_control(ACK);
+        let mut progress_frame = vec![SOH];
+        progress_frame.extend_from_slice(b"ATTENDERE PREGO     ");
+        progress_frame.push(EOT);
+        response.extend(progress_frame);
+        response.extend(ok_payment_result());
+        let mut t = FakeTransport::new();
+        t.enqueue_response(response);
+        let mut client = Ecr17Client::new(t, config());
+
+        let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+        let sink = Arc::clone(&seen);
+        client.set_on_progress(move |e| sink.lock().unwrap().push(e.message));
+
+        let req = PaymentRequest {
+            amount_cents: 650,
+            cash_register_id: None,
+            payment_type: None,
+            card_already_present: None,
+            receipt_text: None,
+            tokenization: None,
+        };
+        client.pay(&req).await.unwrap();
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec!["ATTENDERE PREGO     ".to_string()]
+        );
     }
 
     #[tokio::test]
