@@ -18,8 +18,8 @@ When you change the README:
   regenerate the root copy with the sync script (added in MACRO 8, e.g. `scripts/sync-readme`).
   Never hand-edit the root `README.md` once the script exists.
 - Commit both files together.
-- CI (`frontend-checks`, from MACRO 8) runs the readme check and fails if the root
-  `README.md` is out of sync, so a stale mirror never lands.
+- A dedicated readme-sync CI check (added in MACRO 8) fails if the root `README.md` is out
+  of sync, so a stale mirror never lands.
 
 Cross-port links: the README must link the sibling ports
 (`padosoft/react-native-ecr17-protocol`, `padosoft/laravel-ecr17`), and those repos must

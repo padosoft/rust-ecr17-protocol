@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E runs against the Vite frontend with the Tauri IPC mocked (@tauri-apps/api/mocks),
-// so every UI interaction is covered deterministically without a real POS or the native
-// shell. The webServer boots the Vite dev server on the Tauri-fixed port 1420.
+// E2E runs against the Vite frontend served by the webServer below (Vite dev on the
+// Tauri-fixed port 1420). Today this is just a smoke test; from MACRO 7 the suite mocks
+// the Tauri IPC (@tauri-apps/api/mocks `mockIPC`) so every UI interaction is covered
+// deterministically without a real POS or the native shell.
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
