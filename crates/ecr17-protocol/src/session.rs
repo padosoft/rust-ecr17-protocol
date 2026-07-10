@@ -12,6 +12,7 @@
 //! [`crate::retry`] and is applied by the client, and a lost response is recovered via
 //! `send_last_result` (`G`), never by retransmitting a financial request.
 
+use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use crate::codec::{DecodedPacket, PacketCodec, PacketType, ACK, ETX, NAK, SOH, STX};
@@ -66,7 +67,9 @@ pub struct Ecr17Session<T: Transport> {
     transport: T,
     config: SessionConfig,
     codec: PacketCodec,
-    rx_buffer: Vec<u8>,
+    /// Inbound byte buffer. A `VecDeque` so resyncing (dropping junk from the front) and
+    /// draining a frame are O(1)/O(frame) rather than O(n) shifts of a `Vec`.
+    rx_buffer: VecDeque<u8>,
     /// Holds an application response that arrived during the ACK handshake (some terminals
     /// send the result before/without a physical ACK). Consumed by `wait_for_result` so a
     /// completed transaction's result is never dropped.
@@ -93,7 +96,7 @@ impl<T: Transport> Ecr17Session<T> {
             transport,
             config,
             codec,
-            rx_buffer: Vec::new(),
+            rx_buffer: VecDeque::new(),
             pending_result: None,
             on_progress: None,
             on_receipt_line: None,
@@ -309,7 +312,7 @@ impl<T: Transport> Ecr17Session<T> {
     /// Extracts one complete frame from the front of `rx_buffer`, dropping leading junk
     /// bytes to resynchronize. `None` if no complete frame is available yet.
     fn extract_frame(&mut self) -> Option<Vec<u8>> {
-        while let Some(&first) = self.rx_buffer.first() {
+        while let Some(&first) = self.rx_buffer.front() {
             if first == ACK || first == NAK {
                 if self.rx_buffer.len() < 3 {
                     return None; // wait for ETX + LRC
@@ -323,7 +326,7 @@ impl<T: Transport> Ecr17Session<T> {
                 if self.rx_buffer[1] != ETX
                     || self.rx_buffer[2] != self.codec.lrc_mode().compute(&[first])
                 {
-                    self.rx_buffer.remove(0);
+                    self.rx_buffer.pop_front();
                     continue;
                 }
                 return Some(self.rx_buffer.drain(0..3).collect());
@@ -344,7 +347,7 @@ impl<T: Transport> Ecr17Session<T> {
                 return Some(self.rx_buffer.drain(0..=eot).collect());
             }
             // Unrecognized lead byte: drop it and resynchronize.
-            self.rx_buffer.remove(0);
+            self.rx_buffer.pop_front();
         }
         None
     }
@@ -361,7 +364,7 @@ impl<T: Transport> Ecr17Session<T> {
                 return WaitOutcome::Timeout;
             }
             match tokio::time::timeout(remaining, self.transport.recv()).await {
-                Ok(Ok(bytes)) => self.rx_buffer.extend_from_slice(&bytes),
+                Ok(Ok(bytes)) => self.rx_buffer.extend(bytes),
                 Ok(Err(err)) => return WaitOutcome::TransportError(err),
                 Err(_elapsed) => return WaitOutcome::Timeout,
             }
@@ -370,8 +373,10 @@ impl<T: Transport> Ecr17Session<T> {
 
     async fn send_control(&mut self, control: u8) {
         let frame = self.codec.encode_control(control);
-        // Best effort: a failed ACK/NAK send means we're already disconnected, which the
-        // next read surfaces.
+        // Best effort: an ACK/NAK is a courtesy confirmation. If the send fails the
+        // transport is down; a later read in the same exchange surfaces it, and for the
+        // final result-ACK we deliberately keep the already-obtained result rather than
+        // failing a completed transaction on a lost ACK.
         let _ = self.transport.send(&frame).await;
     }
 
