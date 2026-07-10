@@ -199,6 +199,41 @@
 - (e2e) Playwright drives the Vite frontend with Tauri IPC mocked
   (`@tauri-apps/api/mocks` `mockIPC`) for deterministic UI coverage without a POS.
 
+## Frontend / control panel (MACRO 7)
+- **Tauri v2 IPC contract (verified by grepping `node_modules/@tauri-apps/api`):** the
+  frontend does NOT need `@tauri-apps/api/mocks`. `invoke(cmd, args)` calls
+  `window.__TAURI_INTERNALS__.invoke(cmd, args, opts)`; `listen(event, cb)` calls
+  `invoke("plugin:event|listen", { event, target, handler: transformCallback(cb) })` and
+  the runtime later calls `window.__TAURI_INTERNALS__.callbacks[id]` (registered via
+  `transformCallback`). Our Playwright mock (`e2e/tauri-mock.ts`) installs
+  `window.__TAURI_INTERNALS__.{invoke,transformCallback,unregisterCallback}`, special-cases
+  `plugin:event|listen` to stash the handler, and exposes `window.__ecr17mock` with
+  `setResponse/setError/setDelayed/emit/reset`. This is more faithful than mockIPC (tests
+  the real event path) and needs no bundler cooperation.
+- **Command names are snake_case, arg keys are camelCase.** A Rust `#[tauri::command] fn
+  pay_extended(request: …)` is invoked as `invoke("pay_extended", { request })`. Serde
+  `rename_all="camelCase"` only touches the *struct fields*, not the command name or the
+  top-level arg key (which mirrors the Rust *parameter* name). Getting either wrong yields
+  a silent "command not found" at runtime.
+- **React event pooling bites `setState` updaters:** reading `e.currentTarget.value`
+  *inside* a `setValues(v => …)` updater returns null — the updater runs after the event
+  object is recycled. Capture `const val = e.currentTarget.value` BEFORE calling the
+  setter. (Hit in every onChange of the params sheet.)
+- **Biome a11y on a click-to-close modal backdrop:** `noStaticElementInteractions` +
+  `useKeyWithClickEvents` fire on a `<div onClick>` backdrop, and `stopPropagation` on an
+  inner div trips them again. Clean fix that keeps click-outside-to-close: render a
+  full-screen transparent `<button aria-label="Close">` *behind* the panel (z-index) for
+  the outside-click, give the panel `role="dialog" aria-modal`, and add a `window` Escape
+  keydown listener for the keyboard path — no `stopPropagation`, no biome-ignore.
+- **Biome `noLabelWithoutControl` + conditional control:** a `<label>` whose control is
+  rendered via a ternary can't be statically proven to wrap a control, so biome flags it
+  even though the association is valid at runtime. Fix explicitly with `htmlFor={id}` on
+  the label + matching `id` on each branch's input (use `useId()` for a stable base).
+- **Biome `useExhaustiveDependencies` for "run on change X" effects:** an effect that must
+  re-run when a value changes but whose body only reads refs (e.g. auto-scroll on new log
+  entries) is legitimately flagged. A `// biome-ignore lint/correctness/useExhaustiveDependencies:
+  <reason>` on the line above the `useEffect` is the correct, honest resolution.
+
 ## Protocol facts — verified against the reference (do NOT "fix")
 - **Receipt-text (128 bytes) is RIGHT-aligned** in the payment family (`P`/`X`/`p`) and
   pre-auth follow-ups (`i`/`c`): leading spaces, text at the tail. The C++
