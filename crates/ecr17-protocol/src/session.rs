@@ -56,9 +56,9 @@ type EventCallback = Box<dyn Fn(String) + Send + 'static>;
 enum WaitOutcome {
     Frame(DecodedPacket),
     Timeout,
-    /// The transport errored; carries the underlying error so transport-level details
-    /// (e.g. `Ecr17Error::Transport { kind, message }`) are preserved, not flattened.
-    Disconnected(Ecr17Error),
+    /// The transport errored (a disconnect OR any `Ecr17Error::Transport { .. }`); carries
+    /// the underlying error so transport-level details are preserved, not flattened.
+    TransportError(Ecr17Error),
 }
 
 /// Drives ECR17 exchanges over a [`Transport`] `T`.
@@ -211,7 +211,7 @@ impl<T: Transport> Ecr17Session<T> {
                     // Ignore progress / unknown frames that may precede the ACK.
                     _ => {}
                 },
-                WaitOutcome::Disconnected(e) => return Err(e),
+                WaitOutcome::TransportError(e) => return Err(e),
                 // Timed out waiting; loop re-checks the deadline and retransmits.
                 WaitOutcome::Timeout => {}
             }
@@ -246,7 +246,7 @@ impl<T: Transport> Ecr17Session<T> {
                 }
                 match self.wait_for_frame(remaining).await {
                     WaitOutcome::Frame(p) => p,
-                    WaitOutcome::Disconnected(e) => return Err(e),
+                    WaitOutcome::TransportError(e) => return Err(e),
                     WaitOutcome::Timeout => continue,
                 }
             };
@@ -296,7 +296,7 @@ impl<T: Transport> Ecr17Session<T> {
                     _ => {}
                 },
                 // Idle (no more receipts) or dropped: stop draining.
-                WaitOutcome::Timeout | WaitOutcome::Disconnected(_) => return,
+                WaitOutcome::Timeout | WaitOutcome::TransportError(_) => return,
             }
         }
     }
@@ -345,7 +345,7 @@ impl<T: Transport> Ecr17Session<T> {
             }
             match tokio::time::timeout(remaining, self.transport.recv()).await {
                 Ok(Ok(bytes)) => self.rx_buffer.extend_from_slice(&bytes),
-                Ok(Err(dropped)) => return WaitOutcome::Disconnected(dropped),
+                Ok(Err(err)) => return WaitOutcome::TransportError(err),
                 Err(_elapsed) => return WaitOutcome::Timeout,
             }
         }
