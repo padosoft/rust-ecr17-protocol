@@ -105,6 +105,14 @@
   <=N lines" instruction behaved read-only (0 file changes) and finished in ~1m40s on a
   ~560-line focused diff. Feeding the full 10k-line branch diff (mostly lockfile) would
   have timed out — keep the review diff focused on hand-authored files.
+- **Requesting the remote Copilot PR reviewer:** `gh pr edit <n> --add-reviewer copilot`
+  FAILS ("Could not resolve user with login 'copilot'"), and the GraphQL suggestedActors
+  list does NOT include the review bot (only `copilot-swe-agent`/coding agents). The
+  working recipe is the REST endpoint with the reviewer bot slug:
+  `gh api -X POST repos/<owner>/<repo>/pulls/<n>/requested_reviewers -f "reviewers[]=copilot-pull-request-reviewer[bot]"`
+  → the PR's `requested_reviewers` then shows `{login: "Copilot", type: "Bot"}`. Re-run it
+  after each push to re-request the review.
+- CI (rust-tests + frontend-checks + e2e) went green on the FIRST push of the bootstrap PR.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the

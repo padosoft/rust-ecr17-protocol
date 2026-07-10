@@ -1,4 +1,5 @@
-# Normalize line endings to LF in the repo; check out native on Windows.
+# Normalize all text files to LF in the repository AND in working trees on every
+# platform (eol=lf), so line endings never churn across Windows/Linux/macOS or CI.
 * text=auto eol=lf
 
 # Binary assets — never normalize.

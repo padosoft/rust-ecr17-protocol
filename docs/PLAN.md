@@ -41,7 +41,8 @@ Rust — no bridging layer needed.
 
 ```
 rust-ecr17-protocol/
-├─ Cargo.toml                        # [workspace] members = crates/*, app/src-tauri
+├─ Cargo.toml                        # [workspace] members = crates/*; app/ is EXCLUDED
+│                                     #   (self-contained Tauri project, path-deps the crate)
 ├─ crates/ecr17-protocol/            # ← published library crate
 │  ├─ Cargo.toml                     # name="ecr17-protocol"; feature "tokio-transport"
 │  ├─ README.md                      # crates.io front page (mirror of root README)
