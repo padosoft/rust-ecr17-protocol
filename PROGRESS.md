@@ -24,23 +24,22 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 - [x] **MACRO 3 — Response parsers** (`feat/protocol-parsers`)  ✅ MERGED (PR #5, 4b77509)
   - [x] T3.1 `response.rs` (all raw parsers + outcome + DccInfo) — tests ported  ✅
 - [x] **MACRO 4 — Session & money-safety** (`feat/session-retry`)  ✅ MERGED (PR #6, d8672ba)
-- [ ] **MACRO 5 — Client + TCP** (`feat/client-and-tcp`)  ← IN PROGRESS (impl done)
-  - [x] T5.1 `client.rs` (all commands, mapping raw→typed, money-safe auto-reconnect, tokenization)  ✅
-  - [x] T5.2 `transport/tcp.rs` (tokio TCP + non-destructive liveness probe; env-gated integration test)  ✅
-  - [x] T5.3 `cargo publish --dry-run` green; crate README placeholder (wow README in MACRO 8)  ✅
-  - [ ] local Copilot review → push → PR → CI + Copilot → merge
-- [ ] MACRO 6 — Tauri backend (`feat/tauri-backend`)
+- [x] **MACRO 5 — Client + TCP** (`feat/client-and-tcp`)  ✅ MERGED (PR #7)
+- [ ] **MACRO 6 — Tauri backend** (`feat/tauri-backend`)  ← IN PROGRESS (impl done; verified by CI tauri-check)
+  - [x] T6.1 `src-tauri` bridge: managed Ecr17Client<TcpTransport> state, one #[tauri::command] per command, events (ecr17:progress/receipt/connection)  ✅
+  - [x] T6.2 backend serde-round-trip tests + tauri-check CI (webkit deps, cargo clippy+test)  ✅
+  - [ ] push → CI (incl. tauri-check) green → PR → Copilot → merge
 - [ ] MACRO 7 — Control panel UI (`feat/control-panel-ui`)
 - [ ] MACRO 8 — Packaging, docs, release (`chore/release-1.0`): README, release CI,
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. MACRO 0-4 merged. On branch `feat/client-and-tcp`: `client.rs`
-(high-level API + raw→typed mapping + money-safe auto-reconnect + tokenization) and
-`transport/tcp.rs` (real tokio TCP + poll_peek liveness probe) done; 106 tests green
-(+3 tcp local, 1 ignored real-terminal), clippy/fmt/doc clean, cargo publish --dry-run OK.
-MSRV bumped to 1.85 (Waker::noop). NEXT: local Copilot review → push → PR → merge. Then
-MACRO 6 (Tauri backend bridge).
+Session 2026-07-10. MACRO 0-5 merged (protocol crate COMPLETE + publishable).
+On branch `feat/tauri-backend`: app/src-tauri bridges Ecr17Client<TcpTransport> — 19
+#[tauri::command]s (configure/connect/disconnect/is_connected + all 14 protocol cmds) +
+progress/receipt/connection events; backend serde tests; new tauri-check CI (webkit deps).
+Backend not locally compilable (GNU windres) → verified by CI. NEXT: push → tauri-check
+green → PR → Copilot → merge. Then MACRO 7 (control-panel UI + Playwright).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.
