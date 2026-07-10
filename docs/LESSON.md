@@ -65,6 +65,10 @@
   an SOH frame whose last byte != EOT.
 - Status code is lowercase `'s'`. Payment `'P'` request = **167 bytes**.
 - Receipts = one or more `S` messages (concatenate). Reversal request = `'S'`.
+- Status response date/time is a raw `DDMMYYhhmm` on the wire. The RN API exposes it as a
+  JS `Date`. In Rust we keep `PosStatusResponse.terminal_date_time` as an **ISO 8601 String**
+  (dependency-free; the frontend does `new Date(iso)`), and the MACRO 3 `response` parser
+  converts raw `DDMMYYhhmm` → ISO. (Codex P2 review, PR #4.)
 - `decode()` treats the buffer as exactly one frame (LRC = final byte); stream→frame
   splitting belongs to the transport layer.
 - Outcome map: `"00"→ok`, `"01"→ko`, `"05"→cardNotPresent`, `"09"→unknownTag`.
@@ -98,6 +102,22 @@
 - Receipt detection: an application payload is a receipt ('S' send-ticket) when
   `payload[9] == 'S'` (message code at position 10, 0-indexed 9) — port in `session.rs`.
 
+## Data model (Rust, MACRO 2)
+- serde `Option<T>` struct fields deserialize to `None` when the key is ABSENT — no
+  `#[serde(default)]` needed. So request structs only require their non-Option fields
+  (e.g. `amountCents`) and optionals are naturally omitted by the frontend.
+- Match the TS string unions with `#[serde(rename_all = "camelCase")]` on structs (so
+  `amount_cents` ⇄ `amountCents`) and on multi-word enums (`CardNotPresent`⇄`cardNotPresent`,
+  `ClessMag`⇄`clessMag`, `UnscheduledOrOneClick`⇄`unscheduledOrOneClick`); single-word
+  enums use `"lowercase"` (`Disconnected`⇄`disconnected`).
+- Amounts are `i64` cents; `PaymentCardType::as_digit()` → `'0'..'3'`. In Rust there is no
+  nitro namespace clash, so the DCC struct keeps the TS name `CurrencyExchange` (the C++
+  `DccInfo` rename was only to avoid the generated nitro struct).
+- Builders live in `protocol.rs` as pure `pub fn`s taking primitives (`&str`, `i64`, `char`,
+  `bool`) and returning `Result<String, Ecr17Error>`; the enum→digit mapping happens at the
+  client layer (MACRO 5). `clippy::too_many_arguments` is #[allow]ed on the payment builders
+  (faithful to the fixed ECR17 field set; the ergonomic request structs wrap them).
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the
@@ -106,6 +126,16 @@
   command; emit `progress`/`receiptLine`/`connectionState` as Tauri events.
 - (e2e) Playwright drives the Vite frontend with Tauri IPC mocked
   (`@tauri-apps/api/mocks` `mockIPC`) for deterministic UI coverage without a POS.
+
+## Protocol facts — verified against the reference (do NOT "fix")
+- **Receipt-text (128 bytes) is RIGHT-aligned** in the payment family (`P`/`X`/`p`) and
+  pre-auth follow-ups (`i`/`c`): leading spaces, text at the tail. The C++
+  `buildPaymentLike` uses `leftPad(receiptText, 128, ' ')` and its layout test asserts
+  `substr(156,3)=="ABC"` ("text right-aligned"). A MACRO 2 Copilot review claimed text
+  fields "should be left-justified" (right_pad) — REJECTED after checking the reference +
+  test; switching to right_pad would misalign the field vs the terminal and break the
+  layout test. Locked by `payment_receipt_text_is_right_aligned`. (By contrast, the `U`
+  TAG *number* IS left-justified/`right_pad` — different field.)
 
 ## Review/CI learnings
 - **Copilot local review (T0.4 bootstrap):** two comments, both correctly REJECTED after
