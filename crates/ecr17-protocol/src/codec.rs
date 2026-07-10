@@ -249,6 +249,23 @@ mod tests {
         );
     }
 
+    // Documents (and locks) the intentional leniency: a control reply is recognized by
+    // its lead byte, so trailing bytes are ignored and the control-frame LRC is NOT
+    // verified (the session only inspects the type). Mirrors the C++ reference.
+    #[test]
+    fn decode_control_is_lead_byte_only_ignoring_trailing_and_lrc() {
+        let codec = PacketCodec::new(LrcMode::Std);
+        // Trailing byte after ACK -> still Ack.
+        assert_eq!(codec.decode(&[ACK, 0x00]).packet_type, PacketType::Ack);
+        // 3-byte control frame with a WRONG LRC -> still Ack (control LRC not checked).
+        assert_eq!(codec.decode(&[ACK, ETX, 0xFF]).packet_type, PacketType::Ack);
+        // Same for NAK with arbitrary trailing bytes.
+        assert_eq!(
+            codec.decode(&[NAK, 0x99, 0x42]).packet_type,
+            PacketType::Nak
+        );
+    }
+
     #[test]
     fn decode_empty_is_unknown() {
         let decoded = PacketCodec::new(LrcMode::Std).decode(&[]);
