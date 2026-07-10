@@ -42,7 +42,7 @@ Rust — no bridging layer needed.
 ```
 rust-ecr17-protocol/
 ├─ Cargo.toml                        # [workspace] members = crates/*; app/ is EXCLUDED
-│                                     #   (self-contained Tauri project, path-deps the crate)
+│                                     #   (self-contained Tauri project; will path-dep the crate in MACRO 6)
 ├─ crates/ecr17-protocol/            # ← published library crate
 │  ├─ Cargo.toml                     # name="ecr17-protocol"; feature "tokio-transport"
 │  ├─ README.md                      # crates.io front page (mirror of root README)
@@ -250,7 +250,7 @@ Rust's package registry is **crates.io**, driven by **Cargo**:
 
 ## 10. Toolchain (verified on this machine)
 
-rustc/cargo 1.96 · node 25 · bun 1.3 · gh 2.88 (auth `lopadova`, ssh) · copilot CLI 1.0.69 ·
+rustc/cargo 1.96 · node 25 · bun 1.3 · gh 2.88 (authenticated, ssh) · copilot CLI 1.0.69 ·
 git 2.55. **`tauri-cli` not yet installed** → `cargo install tauri-cli` (or `npm create tauri-app@latest`).
 Use the **latest** stable releases of Tauri 2, React 19, Vite, Playwright, Vitest, tokio, serde,
 thiserror at scaffold time (pin exact versions in lockfiles).

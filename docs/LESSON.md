@@ -11,7 +11,7 @@
   inside the Bash tool — the `@` leaks into the arg. Use a bash heredoc
   (`<<'EOF' … EOF`) or `git commit -F -`.
 - Toolchain verified 2026-07-10: rustc/cargo **1.96**, node **25**, npm 11, bun **1.3**,
-  gh **2.88** (auth `lopadova`, git protocol **ssh**), copilot CLI **1.0.69**, git 2.55.
+  gh **2.88** (authenticated, git protocol **ssh**), copilot CLI **1.0.69**, git 2.55.
 - `tauri-cli` is **not preinstalled** → `cargo install tauri-cli` (or scaffold via
   `npm create tauri-app@latest`). Tauri 2 is the current major.
 - ⚠️ **The default `x86_64-pc-windows-msvc` toolchain is BROKEN on this machine** — the

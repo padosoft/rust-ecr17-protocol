@@ -3,7 +3,8 @@ resolver = "2"
 members = ["crates/ecr17-protocol"]
 # The Tauri app is a self-contained cargo project (its own lockfile). Excluded so the
 # lean protocol workspace `cargo test` never has to compile the Tauri/WebView stack —
-# the desktop/installer build runs in CI. The app depends on ecr17-protocol by path.
+# the desktop/installer build runs in CI. The app will take a path dependency on
+# `ecr17-protocol` when the backend bridge is wired (MACRO 6); not declared yet.
 exclude = ["app"]
 
 [workspace.package]
