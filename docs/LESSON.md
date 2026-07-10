@@ -65,6 +65,10 @@
   an SOH frame whose last byte != EOT.
 - Status code is lowercase `'s'`. Payment `'P'` request = **167 bytes**.
 - Receipts = one or more `S` messages (concatenate). Reversal request = `'S'`.
+- Status response date/time is a raw `DDMMYYhhmm` on the wire. The RN API exposes it as a
+  JS `Date`. In Rust we keep `PosStatusResponse.terminal_date_time` as an **ISO 8601 String**
+  (dependency-free; the frontend does `new Date(iso)`), and the MACRO 3 `response` parser
+  converts raw `DDMMYYhhmm` → ISO. (Codex P2 review, PR #4.)
 - `decode()` treats the buffer as exactly one frame (LRC = final byte); stream→frame
   splitting belongs to the transport layer.
 - Outcome map: `"00"→ok`, `"01"→ko`, `"05"→cardNotPresent`, `"09"→unknownTag`.

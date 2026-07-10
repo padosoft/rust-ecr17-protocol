@@ -204,7 +204,10 @@ pub fn pos_terminal_status_message(status: PosTerminalStatus) -> &'static str {
 pub struct PosStatusResponse {
     /// Terminal identifier echoed back.
     pub terminal_id: String,
-    /// Terminal date/time (raw as received).
+    /// Terminal date/time as an **ISO 8601** string (e.g. `"2026-07-10T14:30:00"`),
+    /// parsed by the `response` layer from the terminal's raw `DDMMYYhhmm`. A string
+    /// (not a native datetime) keeps the library dependency-free; the frontend maps it
+    /// with `new Date(...)`, preserving the RN API's date contract.
     pub terminal_date_time: String,
     /// Status code (`-1`..`6`); see [`pos_terminal_status_message`].
     pub status: PosTerminalStatus,
