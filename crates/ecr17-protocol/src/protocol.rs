@@ -382,7 +382,9 @@ pub fn build_additional_tags(
     iso_field: &str,
     tag_number: &str,
 ) -> Result<String> {
-    if tag_content.is_empty() || tag_content.len() > 100 {
+    // Length bounds AND no embedded field separator: a 0x1B inside the content would
+    // prematurely terminate the field and produce a malformed/injectable 'U' message.
+    if tag_content.is_empty() || tag_content.len() > 100 || tag_content.contains(FIELD_SEP) {
         return Err(Ecr17Error::TagContentInvalid);
     }
     let mut m = String::new();
@@ -404,7 +406,13 @@ pub fn build_additional_tags(
 ///   `"0COF0TRK<contract>|0FNZ03"` (unscheduled/one-click) or
 ///   `"0REC0TRK<contract>|0FNZ03"` (recurring). `recurring` selects `0REC` vs `0COF`.
 pub fn format_tokenization_tag(recurring: bool, contract_code: &str) -> Result<String> {
-    if contract_code.is_empty() || contract_code.len() > 18 {
+    // Alphanumeric (documented) AND bounded: the code is interpolated into a structured
+    // TAG (`...0TRK<code>|0FNZ03`), so a `|` or a control char could produce an ambiguous
+    // or malformed TAG value.
+    if contract_code.is_empty()
+        || contract_code.len() > 18
+        || !contract_code.bytes().all(|b| b.is_ascii_alphanumeric())
+    {
         return Err(Ecr17Error::ContractCodeInvalid);
     }
     let service = if recurring { "0REC" } else { "0COF" };
@@ -694,6 +702,11 @@ mod tests {
             build_additional_tags(T, &"x".repeat(101), "62", "DF8D01"),
             Err(Ecr17Error::TagContentInvalid)
         );
+        // An embedded field separator (0x1B) would prematurely terminate the field.
+        assert_eq!(
+            build_additional_tags(T, "abc\u{1B}def", "62", "DF8D01"),
+            Err(Ecr17Error::TagContentInvalid)
+        );
     }
 
     #[test]
@@ -712,6 +725,15 @@ mod tests {
         );
         assert_eq!(
             format_tokenization_tag(false, &"x".repeat(19)),
+            Err(Ecr17Error::ContractCodeInvalid)
+        );
+        // Non-alphanumeric (e.g. the '|' TAG separator or a space) is rejected.
+        assert_eq!(
+            format_tokenization_tag(false, "AB|CD"),
+            Err(Ecr17Error::ContractCodeInvalid)
+        );
+        assert_eq!(
+            format_tokenization_tag(true, "ab cd"),
             Err(Ecr17Error::ContractCodeInvalid)
         );
     }
