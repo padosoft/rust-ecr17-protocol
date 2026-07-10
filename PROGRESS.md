@@ -17,11 +17,12 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 ## Macro-task status
 - [x] **MACRO 0 — Governance & scaffolding** (`chore/bootstrap`)  ✅ MERGED (PR #1, squash da326f8)
   - [x] T0.1 Process assets · T0.2 Cargo workspace · T0.3 Tauri scaffold · T0.4 CI  ✅
-- [ ] **MACRO 1 — Protocol primitives** (`feat/protocol-primitives`)  ← IN PROGRESS
-  - [x] T1.1 `lrc.rs` (LrcMode + LRC compute) — tests ported from test_lrc.cpp  ✅
-  - [x] T1.2 `codec.rs` (PacketCodec encode/decode) — tests ported from test_packet_codec.cpp  ✅
+- [x] **MACRO 1 — Protocol primitives** (`feat/protocol-primitives`)  ✅ MERGED (PR #2, fb4119b)
+  - [x] T1.1 `lrc.rs` · T1.2 `codec.rs` — tests ported (23 unit + 1 doc)  ✅
+- [ ] **MACRO 2 — Message builders** (`feat/protocol-builders`)  ← IN PROGRESS (impl done)
+  - [x] T2.1 `types.rs` (config/requests/results/enums, serde camelCase) + `error.rs`  ✅
+  - [x] T2.2 `protocol.rs` (all builders + tokenization) — tests ported  ✅ (59 unit + 1 doc)
   - [ ] local Copilot review → push → PR → CI + Copilot → merge
-- [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
 - [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
 - [ ] MACRO 4 — Session & money-safety (`feat/session-retry`): transport, retry, session
 - [ ] MACRO 5 — Client + TCP (`feat/client-and-tcp`): client, tcp, crate polish
@@ -31,10 +32,10 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. MACRO 0 merged to main (PR #1). On branch `feat/protocol-primitives`:
-`lrc.rs` + `codec.rs` ported from the C++ reference, 22 unit tests + 1 doc-test green,
-clippy -D warnings clean, fmt clean, cargo doc clean. NEXT: local Copilot review → push →
-PR to main → CI + Copilot → merge. Then MACRO 2 (types.rs + protocol.rs builders).
+Session 2026-07-10. MACRO 0 (PR #1) + MACRO 1 (PR #2) merged to main. On branch
+`feat/protocol-builders`: `error.rs` + `types.rs` (full data model) + `protocol.rs` (all
+command builders) ported; 59 unit + 1 doc-test green, clippy/fmt/doc clean. NEXT: local
+Copilot review → push → PR to main → CI + Copilot → merge. Then MACRO 3 (response.rs parsers).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.

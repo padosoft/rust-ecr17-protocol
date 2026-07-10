@@ -98,6 +98,22 @@
 - Receipt detection: an application payload is a receipt ('S' send-ticket) when
   `payload[9] == 'S'` (message code at position 10, 0-indexed 9) — port in `session.rs`.
 
+## Data model (Rust, MACRO 2)
+- serde `Option<T>` struct fields deserialize to `None` when the key is ABSENT — no
+  `#[serde(default)]` needed. So request structs only require their non-Option fields
+  (e.g. `amountCents`) and optionals are naturally omitted by the frontend.
+- Match the TS string unions with `#[serde(rename_all = "camelCase")]` on structs (so
+  `amount_cents` ⇄ `amountCents`) and on multi-word enums (`CardNotPresent`⇄`cardNotPresent`,
+  `ClessMag`⇄`clessMag`, `UnscheduledOrOneClick`⇄`unscheduledOrOneClick`); single-word
+  enums use `"lowercase"` (`Disconnected`⇄`disconnected`).
+- Amounts are `i64` cents; `PaymentCardType::as_digit()` → `'0'..'3'`. In Rust there is no
+  nitro namespace clash, so the DCC struct keeps the TS name `CurrencyExchange` (the C++
+  `DccInfo` rename was only to avoid the generated nitro struct).
+- Builders live in `protocol.rs` as pure `pub fn`s taking primitives (`&str`, `i64`, `char`,
+  `bool`) and returning `Result<String, Ecr17Error>`; the enum→digit mapping happens at the
+  client layer (MACRO 5). `clippy::too_many_arguments` is #[allow]ed on the payment builders
+  (faithful to the fixed ECR17 field set; the ergonomic request structs wrap them).
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the

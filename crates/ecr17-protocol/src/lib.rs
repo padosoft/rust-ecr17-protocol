@@ -29,7 +29,12 @@
 
 // Layers are added incrementally per the implementation plan (docs/PLAN.md).
 pub mod codec;
+pub mod error;
 pub mod lrc;
+pub mod protocol;
+pub mod types;
 
 pub use codec::{DecodedPacket, PacketCodec, PacketType};
+pub use error::{Ecr17Error, Result};
 pub use lrc::LrcMode;
+pub use types::*;
