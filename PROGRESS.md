@@ -19,11 +19,11 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
   - [x] T0.1 Process assets · T0.2 Cargo workspace · T0.3 Tauri scaffold · T0.4 CI  ✅
 - [x] **MACRO 1 — Protocol primitives** (`feat/protocol-primitives`)  ✅ MERGED (PR #2, fb4119b)
   - [x] T1.1 `lrc.rs` · T1.2 `codec.rs` — tests ported from the C++ reference  ✅
-- [ ] **MACRO 2 — Message builders** (`feat/protocol-builders`)  ← IN PROGRESS (impl done)
-  - [x] T2.1 `types.rs` (config/requests/results/enums, serde camelCase) + `error.rs`  ✅
-  - [x] T2.2 `protocol.rs` (all builders + tokenization) — tests ported (byte-exact)  ✅
+- [x] **MACRO 2 — Message builders** (`feat/protocol-builders`)  ✅ MERGED (PR #4, 9568454)
+  - [x] T2.1 `types.rs` + `error.rs` · T2.2 `protocol.rs` (all builders) — tests ported  ✅
+- [ ] **MACRO 3 — Response parsers** (`feat/protocol-parsers`)  ← IN PROGRESS (impl done)
+  - [x] T3.1 `response.rs` (raw parsers: payment/status/totals/close/preauth/vas + outcome + DccInfo) — tests ported  ✅
   - [ ] local Copilot review → push → PR → CI + Copilot → merge
-- [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
 - [ ] MACRO 4 — Session & money-safety (`feat/session-retry`): transport, retry, session
 - [ ] MACRO 5 — Client + TCP (`feat/client-and-tcp`): client, tcp, crate polish
 - [ ] MACRO 6 — Tauri backend (`feat/tauri-backend`)
@@ -32,10 +32,10 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. MACRO 0 (PR #1) + MACRO 1 (PR #2) merged to main. On branch
-`feat/protocol-builders`: `error.rs` + `types.rs` (full data model) + `protocol.rs` (all
-command builders) ported; full ported test suite green (cargo test), clippy/fmt/doc clean. NEXT: local
-Copilot review → push → PR to main → CI + Copilot → merge. Then MACRO 3 (response.rs parsers).
+Session 2026-07-10. MACRO 0-2 merged to main. On branch
+`feat/protocol-parsers`: `response.rs` raw parsers ported from Ecr17Response.cpp; full
+ported suite green (cargo test), clippy/fmt/doc clean. NEXT: local Copilot review → push →
+PR to main → CI + Copilot → merge. Then MACRO 4 (transport + retry + session).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.

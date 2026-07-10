@@ -32,6 +32,7 @@ pub mod codec;
 pub mod error;
 pub mod lrc;
 pub mod protocol;
+pub mod response;
 pub mod types;
 
 pub use codec::{DecodedPacket, PacketCodec, PacketType};
