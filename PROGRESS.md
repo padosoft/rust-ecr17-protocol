@@ -20,7 +20,7 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 - [ ] **MACRO 1 — Protocol primitives** (`feat/protocol-primitives`)  ← IN PROGRESS
   - [x] T1.1 `lrc.rs` (LrcMode + LRC compute) — tests ported from test_lrc.cpp  ✅
   - [x] T1.2 `codec.rs` (PacketCodec encode/decode) — tests ported from test_packet_codec.cpp  ✅
-  - [ ] local copilot review → push → PR → CI + copilot → merge
+  - [ ] local Copilot review → push → PR → CI + Copilot → merge
 - [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
 - [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
 - [ ] MACRO 4 — Session & money-safety (`feat/session-retry`): transport, retry, session

@@ -1,9 +1,11 @@
 //! ECR17 packet framing: encode/decode `STX payload ETX LRC` application frames,
-//! `SOH message EOT` progress updates (no LRC), and the `ACK`/`NAK` control bytes.
+//! `SOH message EOT` progress updates (no LRC), and `ACK`/`NAK` control frames.
 //!
-//! [`PacketCodec::decode`] treats the input buffer as **exactly one frame** (the LRC is
-//! the final byte). Splitting a coalesced byte stream into individual frames is the
-//! transport layer's responsibility, not the codec's.
+//! [`PacketCodec::decode`] treats the input buffer as **exactly one frame**. Frame shapes
+//! differ: an application frame ends with its LRC byte, a progress frame ends with `EOT`
+//! (no LRC), and a control frame is recognized by its lead byte. Splitting a coalesced
+//! byte stream into individual frames is the transport/session layer's responsibility,
+//! not the codec's.
 //!
 //! Port of the reference C++ `PacketCodec`.
 
@@ -37,7 +39,7 @@ pub enum PacketType {
     Unknown,
 }
 
-/// A decoded frame. For [`PacketType::Application`], [`validLrc`](DecodedPacket::valid_lrc)
+/// A decoded frame. For [`PacketType::Application`], [`valid_lrc`](DecodedPacket::valid_lrc)
 /// reports whether the received LRC matched the recomputed one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedPacket {
@@ -98,7 +100,9 @@ impl PacketCodec {
         frame
     }
 
-    /// Encodes a control frame: `ctrl + ETX + LRC(ctrl)`.
+    /// Encodes a control frame: `ctrl + ETX + LRC`, where the LRC is computed over the
+    /// single-byte payload `[ctrl]` under the configured [`LrcMode`] (so it folds
+    /// `STX`/`ETX` exactly as an application-frame LRC would).
     #[must_use]
     pub fn encode_control(&self, ctrl: u8) -> Vec<u8> {
         vec![ctrl, ETX, self.lrc_mode.compute(&[ctrl])]
