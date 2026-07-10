@@ -43,7 +43,16 @@ function coerce(field: Field, raw: string | boolean): unknown {
 }
 
 function isMissing(field: Field, raw: string | boolean): boolean {
-  return Boolean(field.required) && field.kind !== "bool" && String(raw).trim() === "";
+  if (!field.required || field.kind === "bool") {
+    return false;
+  }
+  // A required amount must be a positive number — guard against submitting a
+  // zero-amount (or negative) financial transaction with the default empty/0 value.
+  if (field.kind === "money" || field.kind === "number") {
+    const n = Number.parseFloat(String(raw));
+    return !Number.isFinite(n) || n <= 0;
+  }
+  return String(raw).trim() === "";
 }
 
 export function CommandParamsSheet({ command, onClose, onSubmit }: Props) {

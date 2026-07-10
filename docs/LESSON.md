@@ -268,6 +268,33 @@
   → the PR's `requested_reviewers` then shows `{login: "Copilot", type: "Bot"}`. Re-run it
   after each push to re-request the review.
 - CI (rust-tests + frontend-checks + e2e) went green on the FIRST push of the bootstrap PR.
+- **Copilot local review (MACRO 7 control-panel UI):** 10 items, verdicts anchored to the
+  RN reference as SSOT:
+  1. ACCEPTED — required money/number fields lacked a positive-amount guard (`isMissing`
+     only checked non-empty), so `pay`/`preAuth`/… accepted `0`/negative. The RN reference
+     explicitly guards `typeof v !== "number" || v <= 0` ("guard against a zero-amount
+     financial transaction"). Ported it + added a regression test (`keeps submit disabled
+     for a zero or negative amount`).
+  2. REJECTED — "regex-scrub embedded PANs in errorDescription/rawXml": the SSOT
+     `maskSensitive` masks ONLY the `pan` key; a 13–19-digit regex would over-mask STANs
+     and diverge from the reference. Mine already matches the SSOT exactly.
+  3. REJECTED — "applyConfig before every run rebuilds the client (money-safety)": the RN
+     reference ALSO calls `applyConfig` inside `run()`, gated on a config *change*. The only
+     difference is my Tauri backend's `configure()` disconnects+rebuilds (RN updates in
+     place). But a config edit is an explicit operator action, only fires between
+     transactions (command buttons disabled while `busy`), and the follow-up command's
+     `ensure_connected()` is a FIRST send — not a replay. Double-charge protection lives in
+     `recover_after_error`/`should_retry_after_reconnect`, which still refuses to replay
+     financial commands. Faithful + safe → keep.
+  4–7,10. REJECTED — `isFailure` actionCode nuance, `vas ${responseId}` toast fallback,
+     unused `"number"` FieldKind, `maskPan("123")→"****"`, no upper amount bound: all match
+     the RN reference behavior verbatim (e.g. reference `maskPan` returns `'****'` for
+     `digits.length <= 4`). Faithful port → no change.
+  8–9. Confirmations (no action): Tauri IPC snake_case-command / camelCase-arg contract
+     verified against `lib.rs`; no blind financial retry (Disconnect disabled while busy).
+  Takeaway: for a faithful port, the SSOT is the arbiter — accept a review item only when
+  the reference agrees (here #1) and reject "improvements" that would diverge (#2), citing
+  the reference each time.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the

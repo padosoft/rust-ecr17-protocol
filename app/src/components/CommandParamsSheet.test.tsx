@@ -40,4 +40,21 @@ describe("CommandParamsSheet", () => {
     await userEvent.type(screen.getByTestId("input-amountCents"), "10");
     expect(submit).toBeEnabled();
   });
+
+  it("keeps submit disabled for a zero or negative amount (money-safety)", async () => {
+    render(<CommandParamsSheet command={payCmd} onClose={() => {}} onSubmit={() => {}} />);
+    const submit = screen.getByTestId("sheet-submit");
+    const amount = screen.getByTestId("input-amountCents");
+
+    await userEvent.type(amount, "0");
+    expect(submit).toBeDisabled();
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "-5");
+    expect(submit).toBeDisabled();
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "1");
+    expect(submit).toBeEnabled();
+  });
 });
