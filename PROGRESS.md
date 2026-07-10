@@ -15,12 +15,12 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 6. Zero actionable → merge → update this file. Next task.
 
 ## Macro-task status
-- [ ] **MACRO 0 — Governance & scaffolding** (`chore/bootstrap`)  ← IN PROGRESS
-  - [x] T0.1 Process assets (.claude rules/skills, AGENTS/CLAUDE/LESSON/PROGRESS/PLAN)  ✅
-  - [x] T0.2 Cargo workspace + `ecr17-protocol` crate skeleton compiling  ✅ (build/test/clippy/fmt green; GNU toolchain)
-  - [x] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired  ✅ (typecheck+vitest+build+playwright green locally; backend built in CI only)
-  - [x] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) authored  ← running copilot review → push → PR → CI green → merge
-- [ ] MACRO 1 — Protocol primitives (`feat/protocol-primitives`): lrc, codec
+- [x] **MACRO 0 — Governance & scaffolding** (`chore/bootstrap`)  ✅ MERGED (PR #1, squash da326f8)
+  - [x] T0.1 Process assets · T0.2 Cargo workspace · T0.3 Tauri scaffold · T0.4 CI  ✅
+- [ ] **MACRO 1 — Protocol primitives** (`feat/protocol-primitives`)  ← IN PROGRESS
+  - [x] T1.1 `lrc.rs` (LrcMode + LRC compute) — tests ported from test_lrc.cpp  ✅
+  - [x] T1.2 `codec.rs` (PacketCodec encode/decode) — tests ported from test_packet_codec.cpp  ✅
+  - [ ] local Copilot review → push → PR → CI + Copilot → merge
 - [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
 - [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
 - [ ] MACRO 4 — Session & money-safety (`feat/session-retry`): transport, retry, session
@@ -31,11 +31,13 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. Branch `chore/bootstrap`. T0.1–T0.3 DONE & committed. Tauri app
-scaffolded in `app/` (excluded from the Cargo workspace); frontend guardrails green
-locally (typecheck, Vitest 1✓, Vite build, Playwright 1✓). Tauri backend build is
-CI-only here (GNU/windres + spaced path — see LESSON). NEXT: T0.4 add CI workflows
-(`rust-tests`, `frontend-checks`, `e2e`) + push branch + open first PR toward main.
+Session 2026-07-10. MACRO 0 merged to main (PR #1). On branch `feat/protocol-primitives`:
+`lrc.rs` + `codec.rs` ported from the C++ reference, 22 unit tests + 1 doc-test green,
+clippy -D warnings clean, fmt clean, cargo doc clean. NEXT: local Copilot review → push →
+PR to main → CI + Copilot → merge. Then MACRO 2 (types.rs + protocol.rs builders).
+
+Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
+full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.
 
 ## Notes / decisions
 - Frontend: React 19 + TS + Vite (closest port of RN UI; Playwright + Vitest).

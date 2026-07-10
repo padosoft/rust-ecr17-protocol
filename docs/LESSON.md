@@ -80,6 +80,24 @@
   reactively after the send. Never write bytes on the peer's protocol stream to probe
   (the RN bug: `sendUrgentData(0xFF)` corrupted the next frame under `SO_OOBINLINE`).
 
+## Protocol port specifics (Rust)
+- 💰 **`codec::decode` recognizes ACK/NAK by LEAD BYTE only — do NOT tighten to
+  `data.len() == 1`.** On the wire an ACK/NAK is a **3-byte control frame**
+  `ctrl + ETX + LRC` (that's what `encode_control` produces and what the C++ session's
+  `extractFrameLocked` slices off — it reads exactly 3 bytes for a control frame). So
+  `decode([ACK, ETX, LRC])` must return `Ack`. A Copilot review (MACRO 1) suggested adding
+  a `len == 1` guard "for consistency"; that would make `decode` return `Unknown` for every
+  real ACK → **every transaction's ACK handshake would fail**. Verified against
+  `Ecr17Session.cpp` before rejecting. Locked by `decode_full_control_frame_from_encode_control`.
+  Lesson: for money-adjacent code, validate a reviewer's "consistency" fix against the
+  END-TO-END reference (session framing), not just the local function.
+- The session owns stream→frame splitting (`extractFrameLocked`): ACK/NAK = 3 bytes,
+  STX = up to ETX+LRC, SOH = up to EOT, unknown lead byte = drop 1 and resync. `decode`
+  only ever sees ONE pre-framed frame — its "reject coalesced/trailing" guards are a
+  belt-and-braces second line for STX/SOH.
+- Receipt detection: an application payload is a receipt ('S' send-ticket) when
+  `payload[9] == 'S'` (message code at position 10, 0-indexed 9) — port in `session.rs`.
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the
