@@ -19,7 +19,7 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
   - [x] T0.1 Process assets (.claude rules/skills, AGENTS/CLAUDE/LESSON/PROGRESS/PLAN)  ✅
   - [x] T0.2 Cargo workspace + `ecr17-protocol` crate skeleton compiling  ✅ (build/test/clippy/fmt green; GNU toolchain)
   - [x] T0.3 Tauri app scaffold (React19+TS+Vite+Tauri2) + Vitest + Playwright wired  ✅ (typecheck+vitest+build+playwright green locally; backend built in CI only)
-  - [ ] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) green  ← doing
+  - [x] T0.4 CI skeleton (rust-tests, frontend-checks, e2e) authored  ← running copilot review → push → PR → CI green → merge
 - [ ] MACRO 1 — Protocol primitives (`feat/protocol-primitives`): lrc, codec
 - [ ] MACRO 2 — Message builders (`feat/protocol-builders`): types, protocol
 - [ ] MACRO 3 — Response parsers (`feat/protocol-parsers`): response
