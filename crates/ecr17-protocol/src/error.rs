@@ -39,12 +39,14 @@ pub enum Ecr17Error {
     #[error("ECR17: VAS request exceeds 1024 bytes")]
     VasTooLong,
 
-    /// The additional-data TAG content was empty or longer than 100 chars.
-    #[error("ECR17: additional TAG content must be 1..=100 chars")]
+    /// The additional-data TAG content was empty, longer than 100 chars, or contained the
+    /// field separator (`0x1B`), which would prematurely terminate the field.
+    #[error("ECR17: additional TAG content must be 1..=100 chars with no field separator (0x1B)")]
     TagContentInvalid,
 
-    /// The tokenization contract code was empty or longer than 18 chars.
-    #[error("ECR17: tokenization contract code must be 1..=18 chars")]
+    /// The tokenization contract code was empty, longer than 18 chars, or contained a
+    /// non-alphanumeric character (it is interpolated into a structured TAG value).
+    #[error("ECR17: tokenization contract code must be 1..=18 alphanumeric chars")]
     ContractCodeInvalid,
 }
 

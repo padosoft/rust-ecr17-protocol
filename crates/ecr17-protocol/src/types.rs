@@ -180,7 +180,8 @@ pub struct Ecr17Config {
     pub debug: Option<bool>,
 }
 
-/// POS terminal status code (response `s`), `-1`..`6`.
+/// POS terminal status code (response `s`). Meanings are defined for `0`..=`6`; any other
+/// value (including the `-1` the parser uses for "not reported") maps to "Unknown".
 pub type PosTerminalStatus = i32;
 
 /// Human-readable message for a [`PosTerminalStatus`].
@@ -209,7 +210,8 @@ pub struct PosStatusResponse {
     /// (not a native datetime) keeps the library dependency-free; the frontend maps it
     /// with `new Date(...)`, preserving the RN API's date contract.
     pub terminal_date_time: String,
-    /// Status code (`-1`..`6`); see [`pos_terminal_status_message`].
+    /// Status code (meanings defined for `0`..=`6`; other values map to "Unknown"); see
+    /// [`pos_terminal_status_message`].
     pub status: PosTerminalStatus,
     /// Firmware/software release string.
     pub software_release: String,
