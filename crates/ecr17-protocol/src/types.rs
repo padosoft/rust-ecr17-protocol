@@ -1,10 +1,12 @@
 //! Request/result/config data model (serde), mirroring the reference `types/client.ts`
-//! field-for-field. Enums serialize to the same JSON string unions as the TS API; struct
-//! fields use `camelCase` so the model round-trips across the Tauri IPC unchanged.
+//! field-for-field. Enums serialize to the same JSON string unions as the TS API and
+//! struct fields use `camelCase`, so the model maps cleanly onto the Tauri IPC. Absent
+//! optional fields deserialize to `None`; a `None` serializes as JSON `null` (the TS side
+//! treats `null`/absent equivalently for these optional fields).
 
 use serde::{Deserialize, Serialize};
 
-pub use crate::lrc::LrcMode;
+use crate::lrc::LrcMode;
 
 // ---------------------------------------------------------------------------
 // Enums (string unions)
@@ -238,8 +240,8 @@ pub struct PaymentRequest {
 pub struct ReversalRequest {
     /// Overrides the configured cash-register id when set.
     pub cash_register_id: Option<String>,
-    /// STAN of the transaction to reverse; `"000000"` (default) reverses the last
-    /// payment with no STAN check.
+    /// STAN of the transaction to reverse. When omitted (`None`), the client uses
+    /// `"000000"`, which reverses the last payment with no STAN check.
     pub stan: Option<String>,
 }
 
