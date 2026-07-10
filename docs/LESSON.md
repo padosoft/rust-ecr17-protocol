@@ -95,6 +95,15 @@
   `Ecr17Session.cpp` before rejecting. Locked by `decode_full_control_frame_from_encode_control`.
   Lesson: for money-adjacent code, validate a reviewer's "consistency" fix against the
   END-TO-END reference (session framing), not just the local function.
+- **Two layers, two strictnesses (MACRO 4 review):** `codec::decode` recognizes a control
+  frame by its LEAD BYTE only (lenient — the money-critical rule that a real 3-byte
+  `ctrl+ETX+LRC` ACK is accepted). But the session's `extract_frame` is the gatekeeper that
+  splits the stream, and it now FULLY validates a control frame (`ETX` at [1] AND the
+  control-frame LRC at [2]) before draining it; a stray/corrupted sequence that merely
+  starts with `0x06`/`0x15` is dropped and resynced, so a desynced or corrupted ACK can't
+  prematurely complete a handshake. This goes BEYOND the C++ reference (which sliced 3
+  bytes on the lead byte) — a deliberate robustness improvement for money code. Locked by
+  `stray_ack_byte_is_resynced_not_a_false_ack` + `control_frame_with_bad_lrc_is_resynced`.
 - The session owns stream→frame splitting (`extractFrameLocked`): ACK/NAK = 3 bytes,
   STX = up to ETX+LRC, SOH = up to EOT, unknown lead byte = drop 1 and resync. `decode`
   only ever sees ONE pre-framed frame — its "reject coalesced/trailing" guards are a

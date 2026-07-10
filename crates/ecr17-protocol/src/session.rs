@@ -314,11 +314,15 @@ impl<T: Transport> Ecr17Session<T> {
                 if self.rx_buffer.len() < 3 {
                     return None; // wait for ETX + LRC
                 }
-                // A well-formed control frame is `ctrl + ETX + LRC`. If the byte after the
-                // lead isn't ETX, this 0x06/0x15 is stray/desynced data, not a control
-                // frame — drop it and resync rather than completing a handshake on a lone
-                // byte that merely happens to equal ACK/NAK.
-                if self.rx_buffer[1] != ETX {
+                // A well-formed control frame is `ctrl + ETX + LRC`. Validate the FULL
+                // frame (ETX and the control-frame LRC) before draining it: a stray/
+                // desynced or corrupted sequence that merely starts with 0x06/0x15 must not
+                // complete a handshake. If it doesn't validate, drop the lead byte and
+                // resync. (The session is the gatekeeper here; `codec::decode` recognizes
+                // control frames by lead byte only — see docs/LESSON.md.)
+                if self.rx_buffer[1] != ETX
+                    || self.rx_buffer[2] != self.codec.lrc_mode().compute(&[first])
+                {
                     self.rx_buffer.remove(0);
                     continue;
                 }
@@ -454,6 +458,22 @@ mod tests {
         let c = codec();
         let mut response = vec![ACK, 0xFF]; // stray lead byte, NOT ETX-framed
         response.extend(c.encode_control(ACK)); // the real ACK frame
+        response.extend(c.encode_application(RESULT.as_bytes()));
+        let mut t = FakeTransport::new();
+        t.enqueue_response(response);
+        let mut session = Ecr17Session::new(t, fast_config());
+
+        let result = session.exchange("123456780P...").await.unwrap();
+        assert_eq!(result.payload, RESULT.as_bytes());
+    }
+
+    // A control byte sequence with a valid ETX but a WRONG LRC is corrupt/desynced — it
+    // must be resynced past, not accepted as an ACK.
+    #[tokio::test]
+    async fn control_frame_with_bad_lrc_is_resynced() {
+        let c = codec();
+        let mut response = vec![ACK, ETX, 0x00]; // ETX ok, LRC wrong
+        response.extend(c.encode_control(ACK)); // the real, well-formed ACK
         response.extend(c.encode_application(RESULT.as_bytes()));
         let mut t = FakeTransport::new();
         t.enqueue_response(response);
