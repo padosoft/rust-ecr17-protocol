@@ -62,6 +62,18 @@ fn flag(on: bool) -> char {
     }
 }
 
+/// Rejects a payment-type digit outside `'0'..'3'` so a malformed frame is never produced.
+/// The normal path supplies this via [`crate::types::PaymentCardType::as_digit`].
+fn validate_payment_type(payment_type: char) -> Result<()> {
+    if matches!(payment_type, '0'..='3') {
+        Ok(())
+    } else {
+        Err(Ecr17Error::InvalidPaymentType {
+            value: payment_type,
+        })
+    }
+}
+
 // Shared 167-byte payment-family layout (codes 'P', 'X', 'p').
 #[allow(clippy::too_many_arguments)]
 fn build_payment_like(
@@ -74,6 +86,7 @@ fn build_payment_like(
     with_additional_data: bool,
     receipt_text: &str,
 ) -> Result<String> {
+    validate_payment_type(payment_type)?;
     let mut m = String::with_capacity(167);
     m.push_str(&left_pad(terminal_id, 8, RESERVED)?); // 1  : terminal id
     m.push(RESERVED); // 9  : reserved
@@ -249,6 +262,7 @@ pub fn build_card_verification(
     payment_type: char,
     with_additional_data: bool,
 ) -> Result<String> {
+    validate_payment_type(payment_type)?;
     let mut m = String::with_capacity(39);
     m.push_str(&left_pad(terminal_id, 8, RESERVED)?); // 1  : terminal id
     m.push(RESERVED); // 9  : reserved
@@ -708,6 +722,23 @@ mod tests {
             build_incremental(T, C, 100, "1234567890", false, ""), // 10 digits > 9-byte field
             Err(Ecr17Error::FieldOverflow { .. })
         ));
+    }
+
+    #[test]
+    fn builders_reject_invalid_payment_type() {
+        assert_eq!(
+            build_payment(T, C, 100, '9', false, false, ""),
+            Err(Ecr17Error::InvalidPaymentType { value: '9' })
+        );
+        assert_eq!(
+            build_card_verification(T, C, 'x', false),
+            Err(Ecr17Error::InvalidPaymentType { value: 'x' })
+        );
+        // All valid digits are accepted.
+        for d in ['0', '1', '2', '3'] {
+            assert!(build_payment(T, C, 100, d, false, false, "").is_ok());
+            assert!(build_card_verification(T, C, d, false).is_ok());
+        }
     }
 
     #[test]
