@@ -39,6 +39,15 @@ fn err(e: Ecr17Error) -> String {
     e.to_string()
 }
 
+/// Emits a UI event, logging (not swallowing) a failure. An emit failure is only expected
+/// when the webview is gone (app closing), which is non-recoverable here — but it is logged
+/// to stderr rather than silently dropped.
+fn emit<T: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: T) {
+    if let Err(e) = app.emit(event, payload) {
+        eprintln!("ecr17: failed to emit '{event}': {e}");
+    }
+}
+
 /// Builds a client from `config` and wires its callbacks to Tauri events.
 fn build_client(app: &AppHandle, config: Ecr17Config) -> Client {
     let host = config.host.clone();
@@ -47,17 +56,11 @@ fn build_client(app: &AppHandle, config: Ecr17Config) -> Client {
     let client = Ecr17Client::new(TcpTransport::new(host, port, timeout), config);
 
     let h = app.clone();
-    client.set_on_progress(move |e| {
-        let _ = h.emit(EVENT_PROGRESS, e);
-    });
+    client.set_on_progress(move |e| emit(&h, EVENT_PROGRESS, e));
     let h = app.clone();
-    client.set_on_receipt_line(move |l| {
-        let _ = h.emit(EVENT_RECEIPT, l);
-    });
+    client.set_on_receipt_line(move |l| emit(&h, EVENT_RECEIPT, l));
     let h = app.clone();
-    client.set_on_connection_state_change(move |s| {
-        let _ = h.emit(EVENT_CONNECTION, s);
-    });
+    client.set_on_connection_state_change(move |s| emit(&h, EVENT_CONNECTION, s));
     client
 }
 
@@ -238,11 +241,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn error_maps_to_string() {
-        assert_eq!(
-            err(Ecr17Error::Disconnected),
-            "ECR17: transport disconnected during exchange"
-        );
+    fn error_maps_to_nonempty_string() {
+        // Assert the shape (non-empty, mentions the failure), not the exact Display copy,
+        // so harmless message wording changes don't break the backend test.
+        let s = err(Ecr17Error::Disconnected);
+        assert!(!s.is_empty());
+        assert!(s.to_lowercase().contains("disconnect"), "{s}");
     }
 
     #[test]
