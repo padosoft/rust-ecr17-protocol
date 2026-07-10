@@ -48,6 +48,49 @@ pub enum Ecr17Error {
     /// non-alphanumeric character (it is interpolated into a structured TAG value).
     #[error("ECR17: tokenization contract code must be 1..=18 alphanumeric chars")]
     ContractCodeInvalid,
+
+    /// The transport dropped during an exchange. 💰 A financial command is NEVER blindly
+    /// re-sent after this — recover a lost response via `send_last_result` (`G`).
+    #[error("ECR17: transport disconnected during exchange")]
+    Disconnected,
+
+    /// No physical `ACK` was received after `attempts` send attempts.
+    #[error("ECR17: no ACK after {attempts} attempt(s)")]
+    AckTimeout {
+        /// Total send attempts made (initial + retransmissions).
+        attempts: u32,
+    },
+
+    /// The terminal `NAK`ed the request after `attempts` send attempts.
+    #[error("ECR17: NAK after {attempts} attempt(s)")]
+    Nak {
+        /// Total send attempts made (initial + retransmissions).
+        attempts: u32,
+    },
+
+    /// No application response arrived before the response timeout (after the ACK).
+    #[error("ECR17: no application response before timeout")]
+    ResponseTimeout,
+
+    /// A transport-layer I/O error (real TCP transport). Carries the [`std::io::ErrorKind`]
+    /// (`Clone + Eq`) plus a message rather than the non-`Clone` `std::io::Error`.
+    #[error("ECR17: transport error ({kind:?}): {message}")]
+    Transport {
+        /// The underlying I/O error kind.
+        kind: std::io::ErrorKind,
+        /// A human-readable message.
+        message: String,
+    },
+}
+
+#[cfg(feature = "tokio-transport")]
+impl From<std::io::Error> for Ecr17Error {
+    fn from(e: std::io::Error) -> Self {
+        Ecr17Error::Transport {
+            kind: e.kind(),
+            message: e.to_string(),
+        }
+    }
 }
 
 /// Convenience result alias.

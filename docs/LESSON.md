@@ -95,6 +95,15 @@
   `Ecr17Session.cpp` before rejecting. Locked by `decode_full_control_frame_from_encode_control`.
   Lesson: for money-adjacent code, validate a reviewer's "consistency" fix against the
   END-TO-END reference (session framing), not just the local function.
+- **Two layers, two strictnesses (MACRO 4 review):** `codec::decode` recognizes a control
+  frame by its LEAD BYTE only (lenient — the money-critical rule that a real 3-byte
+  `ctrl+ETX+LRC` ACK is accepted). But the session's `extract_frame` is the gatekeeper that
+  splits the stream, and it now FULLY validates a control frame (`ETX` at [1] AND the
+  control-frame LRC at [2]) before draining it; a stray/corrupted sequence that merely
+  starts with `0x06`/`0x15` is dropped and resynced, so a desynced or corrupted ACK can't
+  prematurely complete a handshake. This goes BEYOND the C++ reference (which sliced 3
+  bytes on the lead byte) — a deliberate robustness improvement for money code. Locked by
+  `stray_ack_byte_is_resynced_not_a_false_ack` + `control_frame_with_bad_lrc_is_resynced`.
 - The session owns stream→frame splitting (`extractFrameLocked`): ACK/NAK = 3 bytes,
   STX = up to ETX+LRC, SOH = up to EOT, unknown lead byte = drop 1 and resync. `decode`
   only ever sees ONE pre-framed frame — its "reject coalesced/trailing" guards are a
@@ -130,6 +139,30 @@
   tested reference; extend only with real-terminal validation.
 - Principle: for a faithful port of tested money code, do NOT speculatively add parse offsets
   from docs we can't verify in-repo — a documented gap beats an untested wrong offset.
+
+## Async session port (MACRO 4)
+- The C++ session used a background reader THREAD + condition_variable. The Rust async
+  port needs **no reader task**: the session `await`s `transport.recv()` when it needs
+  bytes, wrapped in `tokio::time::timeout` for ack/response deadlines. Sequential
+  send→recv within an exchange (ECR17 is one transaction at a time) → the `Transport`
+  trait needs no interior concurrency.
+- `FakeTransport::recv` when idle does `std::future::pending().await` — the session's
+  `timeout(remaining, recv())` cancels it, giving deterministic timeout tests without real
+  waits (except the tiny 40ms fast-config deadlines).
+- Money-safety reset: the Rust session holds NO persistent `disconnected` flag (a drop is
+  observed transiently as `recv() -> Err(Disconnected)`), so `reset_for_new_transaction`
+  only clears `rx_buffer` + `pending_result`. This makes the session reusable across
+  reconnects (regression `recovers_and_succeeds_after_reconnect`) — a stale flag can never
+  block a fresh transaction.
+- `retry.rs::should_retry_after_reconnect` is a PURE function (financial → never retried);
+  the SESSION just errors on drop, and the CLIENT (MACRO 5) applies the retry decision +
+  reconnect. Keep the money decision in one tiny, unit-locked place.
+- Made `tokio` + `async-trait` non-optional (features time/sync/rt; `macros` is a
+  dev-dependency only, for `#[tokio::test]`) so the session/
+  transport/retry are always testable with plain `cargo test`; the `tokio-transport`
+  feature now gates ONLY the real TCP socket (net/io-util). `From<io::Error>` for
+  `Ecr17Error` is feature-gated; the `Transport { kind: io::ErrorKind, message }` variant is
+  always present (io::ErrorKind is Clone+Eq, preserving the error derives).
 
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response

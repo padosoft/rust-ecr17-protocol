@@ -21,10 +21,13 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
   - [x] T1.1 `lrc.rs` · T1.2 `codec.rs` — tests ported from the C++ reference  ✅
 - [x] **MACRO 2 — Message builders** (`feat/protocol-builders`)  ✅ MERGED (PR #4, 9568454)
   - [x] T2.1 `types.rs` + `error.rs` · T2.2 `protocol.rs` (all builders) — tests ported  ✅
-- [ ] **MACRO 3 — Response parsers** (`feat/protocol-parsers`)  ← IN PROGRESS (impl done)
-  - [x] T3.1 `response.rs` (raw parsers: payment/status/totals/close/preauth/vas + outcome + DccInfo) — tests ported  ✅
+- [x] **MACRO 3 — Response parsers** (`feat/protocol-parsers`)  ✅ MERGED (PR #5, 4b77509)
+  - [x] T3.1 `response.rs` (all raw parsers + outcome + DccInfo) — tests ported  ✅
+- [ ] **MACRO 4 — Session & money-safety** (`feat/session-retry`)  ← IN PROGRESS (impl done)
+  - [x] T4.1 `transport.rs` (async Transport trait + FakeTransport)  ✅
+  - [x] T4.2 `retry.rs` (💰 RetryPolicy — financial never replayed)  ✅
+  - [x] T4.3 `session.rs` (ACK/NAK + retransmit + timeout + drain + reset) — tests ported  ✅
   - [ ] local Copilot review → push → PR → CI + Copilot → merge
-- [ ] MACRO 4 — Session & money-safety (`feat/session-retry`): transport, retry, session
 - [ ] MACRO 5 — Client + TCP (`feat/client-and-tcp`): client, tcp, crate polish
 - [ ] MACRO 6 — Tauri backend (`feat/tauri-backend`)
 - [ ] MACRO 7 — Control panel UI (`feat/control-panel-ui`)
@@ -32,10 +35,11 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. MACRO 0-2 merged to main. On branch
-`feat/protocol-parsers`: `response.rs` raw parsers ported from Ecr17Response.cpp; full
-ported suite green (cargo test), clippy/fmt/doc clean. NEXT: local Copilot review → push →
-PR to main → CI + Copilot → merge. Then MACRO 4 (transport + retry + session).
+Session 2026-07-10. MACRO 0-3 merged. On branch `feat/session-retry`: `retry.rs`
+(pure money-safety), `transport.rs` (async Transport trait + FakeTransport), `session.rs`
+(async ACK/NAK+retransmit+timeout+drain, reusable across reconnects) ported; 94 tests
+green, clippy/fmt/doc clean, default + tokio-transport feature build. NEXT: local Copilot
+review → push → PR → merge. Then MACRO 5 (client + real TCP transport).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.

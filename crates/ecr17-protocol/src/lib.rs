@@ -33,9 +33,15 @@ pub mod error;
 pub mod lrc;
 pub mod protocol;
 pub mod response;
+pub mod retry;
+pub mod session;
+pub mod transport;
 pub mod types;
 
 pub use codec::{DecodedPacket, PacketCodec, PacketType};
 pub use error::{Ecr17Error, Result};
 pub use lrc::LrcMode;
+pub use retry::should_retry_after_reconnect;
+pub use session::{Ecr17Session, SessionConfig};
+pub use transport::{FakeTransport, Transport};
 pub use types::*;

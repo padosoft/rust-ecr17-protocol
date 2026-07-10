@@ -13,20 +13,22 @@ categories = ["network-programming", "api-bindings", "encoding"]
 
 [features]
 default = []
-# Real TCP transport (tokio). Pure consumers can use the codec/protocol/response
-# layers without pulling in an async runtime.
-tokio-transport = ["dep:tokio", "dep:async-trait", "tokio/net", "tokio/io-util", "tokio/time", "tokio/rt"]
+# Real tokio TCP transport (adds tokio's net/io stack). The async session, the Transport
+# trait and the in-memory FakeTransport are always available; only the real socket needs
+# this feature.
+tokio-transport = ["tokio/net", "tokio/io-util"]
 
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, optional = true }
-async-trait = { workspace = true, optional = true }
+# The async session/client always need timers, sync primitives and a runtime handle.
+# (`macros`, for #[tokio::test], is a dev-dependency only — see below.)
+tokio = { workspace = true, features = ["time", "sync", "rt"] }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time", "sync", "net", "io-util"] }
-async-trait = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time", "sync", "test-util"] }
 
 [package.metadata.docs.rs]
 all-features = true
