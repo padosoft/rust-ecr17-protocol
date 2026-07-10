@@ -22,7 +22,8 @@ tokio-transport = ["tokio/net", "tokio/io-util", "tokio/rt-multi-thread"]
 serde = { workspace = true }
 thiserror = { workspace = true }
 # The async session/client always need timers, sync primitives and a runtime handle.
-tokio = { workspace = true, features = ["time", "sync", "rt", "macros"] }
+# (`macros`, for #[tokio::test], is a dev-dependency only — see below.)
+tokio = { workspace = true, features = ["time", "sync", "rt"] }
 async-trait = { workspace = true }
 
 [dev-dependencies]

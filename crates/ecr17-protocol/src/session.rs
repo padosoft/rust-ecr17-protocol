@@ -154,7 +154,11 @@ impl<T: Transport> Ecr17Session<T> {
     ) -> Result<DecodedPacket> {
         self.reset_for_new_transaction();
         self.ack_handshake(request_payload).await?;
-        self.ack_handshake(additional_payload).await?;
+        // If the terminal already returned the result during the main handshake, the
+        // transaction is complete — don't send the now-moot additional-data message.
+        if self.pending_result.is_none() {
+            self.ack_handshake(additional_payload).await?;
+        }
         self.wait_for_result().await
     }
 

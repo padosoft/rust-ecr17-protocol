@@ -2,8 +2,8 @@
 //!
 //! The protocol engine never touches sockets directly — all I/O goes through `Transport`,
 //! so the [`crate::session::Ecr17Session`] can be unit-tested deterministically against
-//! `FakeTransport`. The real tokio TCP transport lives in `transport::tcp` behind the
-//! `tokio-transport` feature.
+//! `FakeTransport`. The real tokio TCP transport is added in MACRO 5 (behind the
+//! `tokio-transport` feature); until then, `FakeTransport` is the only implementation.
 
 use std::collections::VecDeque;
 
