@@ -164,6 +164,32 @@
   `Ecr17Error` is feature-gated; the `Transport { kind: io::ErrorKind, message }` variant is
   always present (io::ErrorKind is Clone+Eq, preserving the error derives).
 
+## Client + TCP transport (MACRO 5)
+- The client's progress/receipt/connection-state callbacks use
+  `Arc<Mutex<Option<Arc<dyn Fn(T) + Send + Sync>>>>` shared with the session: at construction
+  the session's `set_on_progress`/`set_on_receipt_line` closures capture the outer Arc and
+  forward to whatever the consumer later registers via `set_on_*` (Rust equivalent of the
+  C++ client capturing `this`). ⚠️ The inner `Arc<dyn Fn>` is cloned OUT of the mutex and
+  invoked with the lock RELEASED — never hold a lock across a user callback (re-entrancy
+  deadlock if the callback re-registers itself). That requires the callback be `Send + Sync`.
+- The money-safe auto-reconnect lives in `client::run_transaction`/`run_ack_only` →
+  `recover_after_error` → `should_retry_after_reconnect`: on a mid-command error, reconnect
+  (if `auto_reconnect` + dropped) then replay ONLY safe/idempotent ops; a financial op
+  surfaces the error (recover via `send_last_result`/`G`). Tests
+  `financial_command_not_replayed_on_drop` + `safe_command_retried_after_reconnect`.
+- `PosStatusResponse.terminal_date_time` is produced as ISO 8601 by
+  `client::raw_datetime_to_iso` (raw `DDMMYYhhmm` → `20YY-MM-DDThh:mm:00`).
+- **TCP liveness probe:** `TcpTransport::is_connected` uses `TcpStream::poll_peek` with
+  `std::task::Waker::noop()` for a synchronous, non-destructive check — `Poll::Ready(Ok(0))`
+  = peer FIN (dead), `Ok(n>0)` = data buffered (alive), `Pending` = open/idle (alive). This
+  detects the between-transaction TCP close BEFORE sending, so a financial command never
+  starts on a stale socket. `poll_peek` returns `Poll<io::Result<usize>>` (byte count), NOT
+  `()`. `Waker::noop()` is stable since Rust **1.85** → the crate MSRV is 1.85 (a manual
+  noop waker would need `unsafe`, which `#![forbid(unsafe_code)]` disallows).
+- Real TCP transport is covered by local `TcpListener` tests (roundtrip, peer-close→EOF,
+  not-connected) under `--features tokio-transport`, plus an `#[ignore]` env-gated
+  (`ECR17_TEST_HOST`) real-terminal `status()` integration test.
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the

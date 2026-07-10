@@ -28,6 +28,7 @@
 #![warn(missing_debug_implementations)]
 
 // Layers are added incrementally per the implementation plan (docs/PLAN.md).
+pub mod client;
 pub mod codec;
 pub mod error;
 pub mod lrc;
@@ -38,6 +39,7 @@ pub mod session;
 pub mod transport;
 pub mod types;
 
+pub use client::Ecr17Client;
 pub use codec::{DecodedPacket, PacketCodec, PacketType};
 pub use error::{Ecr17Error, Result};
 pub use lrc::LrcMode;

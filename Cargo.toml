@@ -12,7 +12,8 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/padosoft/rust-ecr17-protocol"
 authors = ["Padosoft <support@padosoft.com>"]
-rust-version = "1.82"
+# 1.85: std::task::Waker::noop() (used by the tokio TCP transport's liveness probe).
+rust-version = "1.85"
 
 [workspace.dependencies]
 serde = { version = "1.0.228", features = ["derive"] }

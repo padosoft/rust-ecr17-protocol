@@ -11,6 +11,9 @@ use async_trait::async_trait;
 
 use crate::error::{Ecr17Error, Result};
 
+#[cfg(feature = "tokio-transport")]
+pub mod tcp;
+
 /// A bidirectional byte transport to an ECR17 terminal.
 ///
 /// The session drives it strictly sequentially within an exchange (send, then await
