@@ -123,6 +123,16 @@
 - (e2e) Playwright drives the Vite frontend with Tauri IPC mocked
   (`@tauri-apps/api/mocks` `mockIPC`) for deterministic UI coverage without a POS.
 
+## Protocol facts — verified against the reference (do NOT "fix")
+- **Receipt-text (128 bytes) is RIGHT-aligned** in the payment family (`P`/`X`/`p`) and
+  pre-auth follow-ups (`i`/`c`): leading spaces, text at the tail. The C++
+  `buildPaymentLike` uses `leftPad(receiptText, 128, ' ')` and its layout test asserts
+  `substr(156,3)=="ABC"` ("text right-aligned"). A MACRO 2 Copilot review claimed text
+  fields "should be left-justified" (right_pad) — REJECTED after checking the reference +
+  test; switching to right_pad would misalign the field vs the terminal and break the
+  layout test. Locked by `payment_receipt_text_is_right_aligned`. (By contrast, the `U`
+  TAG *number* IS left-justified/`right_pad` — different field.)
+
 ## Review/CI learnings
 - **Copilot local review (T0.4 bootstrap):** two comments, both correctly REJECTED after
   verification (receiving-code-review discipline):

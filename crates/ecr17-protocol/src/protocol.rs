@@ -84,7 +84,10 @@ fn build_payment_like(
     m.push(flag(card_already_present)); // 22 : start-with-card-present
     m.push(payment_type); // 23 : payment type
     m.push_str(&amount_field(amount_cents)?); // 24 : amount (8)
-    m.push_str(&left_pad(receipt_text, 128, ' ')?); // 32 : receipt text (128)
+                                              // 32 : receipt text (128) — RIGHT-aligned (leading spaces), per the Nexi reference
+                                              // (`buildPaymentLike` uses leftPad here; the layout test asserts the text at the tail).
+                                              // Do NOT switch to right_pad — that would misalign the field vs the terminal.
+    m.push_str(&left_pad(receipt_text, 128, ' ')?);
     m.push_str("00000000"); // 160: reserved (8)
     Ok(m) // 167
 }
@@ -107,7 +110,7 @@ fn build_pre_auth_follow_up(
     m.push(flag(with_additional_data)); // 19 : presence of additional GT data
     m.push_str("0000"); // 20 : reserved (4)
     m.push_str(&amount_field(amount_cents)?); // 24 : amount (8)
-    m.push_str(&left_pad(receipt_text, 128, ' ')?); // 32 : receipt text (128)
+    m.push_str(&left_pad(receipt_text, 128, ' ')?); // 32 : receipt text (128, right-aligned; see build_payment_like)
     m.push_str(&left_pad(original_pre_auth_code, 9, RESERVED)?); // 160: original pre-auth code (9)
     m.push_str("00000000"); // 169: reserved (8)
     Ok(m) // 176
@@ -528,6 +531,15 @@ mod tests {
         assert_eq!(&m[31..156], &" ".repeat(125)); // text left-padding
         assert_eq!(&m[156..159], "ABC"); // text right-aligned
         assert_eq!(&m[159..167], "00000000");
+    }
+
+    // Locks the intentional RIGHT-alignment of the 128-byte receipt-text field (leading
+    // spaces, text at the tail) — matches the Nexi reference; do not "fix" to left-align.
+    #[test]
+    fn payment_receipt_text_is_right_aligned() {
+        let m = build_payment(T, C, 650, '0', false, false, "ABC").unwrap();
+        assert_eq!(&m[31..156], &" ".repeat(125)); // 125 leading spaces
+        assert_eq!(&m[156..159], "ABC"); // text right-aligned at the tail
     }
 
     #[test]
