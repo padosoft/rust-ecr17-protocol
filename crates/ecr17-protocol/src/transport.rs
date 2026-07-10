@@ -187,7 +187,10 @@ mod tests {
         assert!(t.is_connected()); // a fresh fake starts connected
         t.disconnect().await;
         assert!(!t.is_connected());
-        assert_eq!(t.send(&[FakeTransport::STX]).await, Err(Ecr17Error::Disconnected));
+        assert_eq!(
+            t.send(&[FakeTransport::STX]).await,
+            Err(Ecr17Error::Disconnected)
+        );
         assert_eq!(t.recv().await, Err(Ecr17Error::Disconnected));
         // connect() restores it.
         t.connect().await.unwrap();
