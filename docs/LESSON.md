@@ -118,6 +118,19 @@
   client layer (MACRO 5). `clippy::too_many_arguments` is #[allow]ed on the payment builders
   (faithful to the fixed ECR17 field set; the ergonomic request structs wrap them).
 
+## Response parser known-limitations (MACRO 3, from Codex P2 review — deliberate)
+- `parse_payment` treats only uppercase `'V'` as a DCC response. Codex flagged that pre-auth
+  **closure** DCC responses use a lowercase `'v'` with a DCC block at a different offset
+  (~pos 75). The C++ reference doesn't handle this either; adding untested offsets into
+  money-critical parsing is riskier than the documented gap → left as a known limitation to
+  validate against a real terminal (env-gated integration test, MACRO 5).
+- The shared payment-family parser doesn't extract a **reversal action code** (pos 72-74 per
+  the Nexi reversal doc). `PaymentResponse` (like the C++) has no such field, so
+  `ReversalResult.action_code` stays empty via this path. Same rationale: faithful to the
+  tested reference; extend only with real-terminal validation.
+- Principle: for a faithful port of tested money code, do NOT speculatively add parse offsets
+  from docs we can't verify in-repo — a documented gap beats an untested wrong offset.
+
 ## Rust/Tauri specifics (fill in as we learn)
 - (session/client) prefer an async `Transport` trait; keep the codec/protocol/response
   layers **pure & sync** (no I/O) so they are trivially unit-testable — mirrors why the

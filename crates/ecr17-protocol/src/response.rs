@@ -1,13 +1,23 @@
 //! Parsers for ECR17 terminal *response* application messages.
 //!
-//! Each parser takes the application payload (the bytes between `STX` and `ETX`, i.e.
-//! [`crate::codec::DecodedPacket::payload`] as text) and returns a plain raw struct with
-//! string fields at the exact 1-based spec offsets. The `client` layer maps these raw
-//! structs onto the typed [`crate::types`] results (enum/amount/date conversions).
+//! Each parser takes the application payload as text — the bytes between `STX` and `ETX`
+//! ([`crate::codec::DecodedPacket::payload`], a `Vec<u8>`) decoded to a `&str` by the
+//! caller — and returns a plain raw struct with string fields at the exact 1-based spec
+//! offsets. The `client` layer maps these raw structs onto the typed [`crate::types`]
+//! results (enum/amount/date conversions).
 //!
 //! Parsing is **defensive**: a field starting beyond the payload comes back empty (and a
 //! partial field is clamped) rather than panicking, so a short/truncated response degrades
 //! gracefully. Port of the reference C++ `Ecr17Response`.
+//!
+//! ## Known limitations (carried from the reference; validate on a real terminal)
+//! - DCC is parsed only for the uppercase `'V'` payment response. Pre-auth **closure** DCC
+//!   responses reportedly use a lowercase `'v'` with a different DCC offset; that variant
+//!   is not parsed here (matches the reference) and would need real-terminal data to add
+//!   safely.
+//! - The shared payment-family parser does not extract a reversal **action code** (the
+//!   reference `PaymentResponse` has no such field), so `ReversalResult.action_code` stays
+//!   empty when a reversal is parsed through this path.
 
 use crate::types::TransactionOutcome;
 
@@ -329,7 +339,7 @@ mod tests {
 
     // Right-justified numeric field, left-padded with '0' to `width`.
     fn n(value: &str, width: usize) -> String {
-        format!("{}{}", "0".repeat(width - value.len()), value)
+        format!("{}{}", "0".repeat(width.saturating_sub(value.len())), value)
     }
 
     #[test]
