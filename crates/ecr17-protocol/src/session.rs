@@ -158,9 +158,12 @@ impl<T: Transport> Ecr17Session<T> {
     ) -> Result<DecodedPacket> {
         self.reset_for_new_transaction();
         self.ack_handshake(request_payload).await?;
-        // If the terminal already returned the result during the main handshake, the
-        // transaction is complete — don't send the now-moot additional-data message.
-        if self.pending_result.is_none() {
+        // Only send the additional-data ('U') message if the terminal is still waiting for
+        // it. If the result already arrived during the main handshake — either decoded
+        // (`pending_result`) or still buffered right after the ACK in the same chunk
+        // (`rx_buffer` non-empty) — the transaction has moved past the 'U' step, so sending
+        // it now would be moot/late; go straight to reading the result.
+        if self.pending_result.is_none() && self.rx_buffer.is_empty() {
             self.ack_handshake(additional_payload).await?;
         }
         self.wait_for_result().await
@@ -674,6 +677,26 @@ mod tests {
             .unwrap();
         assert_eq!(result.payload, RESULT.as_bytes());
         assert_eq!(session.transport().application_request_count(), 2); // P + U
+    }
+
+    // If the terminal returns ACK + result together for the main request (skipping the
+    // 'U' step), the additional-data message must NOT be sent — the transaction is done.
+    #[tokio::test]
+    async fn exchange_with_additional_data_skips_u_when_result_already_arrived() {
+        let c = codec();
+        let mut t = FakeTransport::new();
+        t.enqueue_response(concat(
+            c.encode_control(ACK),
+            c.encode_application(RESULT.as_bytes()),
+        ));
+        let mut session = Ecr17Session::new(t, fast_config());
+
+        let result = session
+            .exchange_with_additional_data("123456780P...", "123456780U...")
+            .await
+            .unwrap();
+        assert_eq!(result.payload, RESULT.as_bytes());
+        assert_eq!(session.transport().application_request_count(), 1); // only P, no U
     }
 
     #[tokio::test]
