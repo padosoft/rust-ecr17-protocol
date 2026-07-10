@@ -32,7 +32,7 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 
 ## Current position
 Session 2026-07-10. MACRO 0 merged to main (PR #1). On branch `feat/protocol-primitives`:
-`lrc.rs` + `codec.rs` ported from the C++ reference, 21 unit tests + 1 doc-test green,
+`lrc.rs` + `codec.rs` ported from the C++ reference, 22 unit tests + 1 doc-test green,
 clippy -D warnings clean, fmt clean, cargo doc clean. NEXT: local Copilot review → push →
 PR to main → CI + Copilot → merge. Then MACRO 2 (types.rs + protocol.rs builders).
 
