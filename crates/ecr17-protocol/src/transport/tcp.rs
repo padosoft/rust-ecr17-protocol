@@ -40,12 +40,15 @@ impl TcpTransport {
 #[async_trait]
 impl Transport for TcpTransport {
     async fn connect(&mut self) -> Result<()> {
-        let addr = format!("{}:{}", self.host, self.port);
-        let stream = tokio::time::timeout(self.connect_timeout, TcpStream::connect(&addr))
+        // Connect via the (host, port) tuple: its `ToSocketAddrs` impl resolves hostnames
+        // and IPv6 literals correctly (no manual `[..]` bracketing that `format!("{host}:{port}")`
+        // would require).
+        let connecting = TcpStream::connect((self.host.as_str(), self.port));
+        let stream = tokio::time::timeout(self.connect_timeout, connecting)
             .await
             .map_err(|_| Ecr17Error::Transport {
                 kind: std::io::ErrorKind::TimedOut,
-                message: format!("connect to {addr} timed out"),
+                message: format!("connect to {}:{} timed out", self.host, self.port),
             })??;
         // Best-effort latency optimization for the request/response handshake. A failure
         // here is non-fatal (Nagle stays on), so we intentionally do not fail connect().

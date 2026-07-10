@@ -166,10 +166,12 @@
 
 ## Client + TCP transport (MACRO 5)
 - The client's progress/receipt/connection-state callbacks use
-  `Arc<Mutex<Option<Box<dyn Fn(T) + Send>>>>` shared with the session: at construction the
-  session's `set_on_progress`/`set_on_receipt_line` closures capture the Arc and forward to
-  whatever the consumer later registers via `set_on_*`. This is the Rust equivalent of the
-  C++ client capturing `this` in the session callbacks.
+  `Arc<Mutex<Option<Arc<dyn Fn(T) + Send + Sync>>>>` shared with the session: at construction
+  the session's `set_on_progress`/`set_on_receipt_line` closures capture the outer Arc and
+  forward to whatever the consumer later registers via `set_on_*` (Rust equivalent of the
+  C++ client capturing `this`). ⚠️ The inner `Arc<dyn Fn>` is cloned OUT of the mutex and
+  invoked with the lock RELEASED — never hold a lock across a user callback (re-entrancy
+  deadlock if the callback re-registers itself). That requires the callback be `Send + Sync`.
 - The money-safe auto-reconnect lives in `client::run_transaction`/`run_ack_only` →
   `recover_after_error` → `should_retry_after_reconnect`: on a mid-command error, reconnect
   (if `auto_reconnect` + dropped) then replay ONLY safe/idempotent ops; a financial op
