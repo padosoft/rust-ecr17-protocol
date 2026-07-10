@@ -33,9 +33,9 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
 
 ## Current position
 Session 2026-07-10. MACRO 0-2 merged to main. On branch
-`feat/protocol-parsers`: `response.rs` raw parsers ported from Ecr17Response.cpp; full suite green. NEXT: local Copilot review -> push -> PR -> merge. Then MACRO 4 (transport + retry + session).
-command builders) ported; full ported test suite green (cargo test), clippy/fmt/doc clean. NEXT: local
-Copilot review → push → PR to main → CI + Copilot → merge. Then MACRO 3 (response.rs parsers).
+`feat/protocol-parsers`: `response.rs` raw parsers ported from Ecr17Response.cpp; full
+ported suite green (cargo test), clippy/fmt/doc clean. NEXT: local Copilot review → push →
+PR to main → CI + Copilot → merge. Then MACRO 4 (transport + retry + session).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.
