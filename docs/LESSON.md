@@ -148,7 +148,8 @@
 - `retry.rs::should_retry_after_reconnect` is a PURE function (financial → never retried);
   the SESSION just errors on drop, and the CLIENT (MACRO 5) applies the retry decision +
   reconnect. Keep the money decision in one tiny, unit-locked place.
-- Made `tokio` + `async-trait` non-optional (features time/sync/rt/macros) so the session/
+- Made `tokio` + `async-trait` non-optional (features time/sync/rt; `macros` is a
+  dev-dependency only, for `#[tokio::test]`) so the session/
   transport/retry are always testable with plain `cargo test`; the `tokio-transport`
   feature now gates ONLY the real TCP socket (net/io-util). `From<io::Error>` for
   `Ecr17Error` is feature-gated; the `Transport { kind: io::ErrorKind, message }` variant is

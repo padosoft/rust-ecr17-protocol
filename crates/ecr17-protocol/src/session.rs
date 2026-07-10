@@ -110,12 +110,13 @@ impl<T: Transport> Ecr17Session<T> {
         self.on_receipt_line = Some(Box::new(cb));
     }
 
-    /// Borrows the underlying transport (e.g. to reconnect it).
+    /// Borrows the underlying transport for read-only inspection (state, test counters).
+    /// To reconnect it, use [`transport_mut`](Self::transport_mut) or [`connect`](Self::connect).
     pub fn transport(&self) -> &T {
         &self.transport
     }
 
-    /// Mutably borrows the underlying transport.
+    /// Mutably borrows the underlying transport (e.g. to reconnect it).
     pub fn transport_mut(&mut self) -> &mut T {
         &mut self.transport
     }
