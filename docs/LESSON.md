@@ -331,6 +331,13 @@
   GitHub re-anchors a bot's ORIGINAL review comments onto the newest commit, so already-fixed
   items reappear in the comment list — dedupe by comment **id** (the first pass was ids
   `35596…`, genuinely-new ones `35651…`) rather than assuming every listed comment is fresh.
+- Copilot also flagged `originalPreAuthCode: str(...) ?? ""` in the dispatcher as a "silent
+  empty default that can send an invalid incremental-auth / pre-auth-closure request" —
+  REJECTED: byte-identical to the RN reference SSOT, AND already unreachable via the UI
+  (the field is `required: true` in commands.ts, so the params sheet disables submit until
+  it is filled). The `?? ""` is only a type-satisfying fallback for the required backend
+  field. Lesson: a "missing required value" finding is moot when an upstream required-field
+  guard already blocks the empty case — verify the whole path before "hardening" a fallback.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the
