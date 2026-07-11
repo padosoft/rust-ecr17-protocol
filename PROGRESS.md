@@ -32,7 +32,7 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
   - [x] T7.1 TS data model + command metadata + result/PAN-mask/log/storage helpers  ✅
   - [x] T7.2 typed Tauri invoke/event bridge + `useEcr17` hook  ✅
   - [x] T7.3 components (ConnectionBar, CommandPalette, ParamsSheet, BusyOverlay, LogConsole, ConfigForm) + App + dark theme  ✅
-  - [x] T7.4 Vitest (10) + Playwright (12, with a full `@tauri-apps/api` IPC mock) — all green  ✅
+  - [x] T7.4 Vitest (12) + Playwright (12, with a full `@tauri-apps/api` IPC mock) — all green  ✅
   - [ ] commit → local Copilot review → push → CI → PR → Copilot → merge
 - [ ] MACRO 8 — Packaging, docs, release (`chore/release-1.0`): README, release CI,
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
@@ -43,7 +43,7 @@ bridge on main). On branch `feat/control-panel-ui`: full web UI — typed Tauri 
 `useEcr17` hook, command palette + dynamic params sheet (money→cents coercion, required
 validation, PAN masking in the log), live log console with download, config form with
 localStorage persistence, busy overlay, connection bar. Frontend gates ALL green: Biome
-lint clean, `tsc --noEmit` clean, 10 Vitest, `vite build` ok, 12 Playwright (with a full
+lint clean, `tsc --noEmit` clean, 12 Vitest, `vite build` ok, 12 Playwright (with a full
 `window.__TAURI_INTERNALS__` invoke/event mock). NEXT: commit → local Copilot review →
 push → CI (frontend-checks + e2e) → PR → Copilot → merge. Then MACRO 8 (README, release
 CI, cross-port links, publish+tag+release).

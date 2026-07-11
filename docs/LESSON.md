@@ -295,6 +295,32 @@
   Takeaway: for a faithful port, the SSOT is the arbiter — accept a review item only when
   the reference agrees (here #1) and reject "improvements" that would diverge (#2), citing
   the reference each time.
+- **Remote PR review (MACRO 7, PR #9) — Codex + Copilot:** 7 comments; 5 accepted, 2 rejected.
+  - Codex P2 "validate money AFTER cent conversion" — ACCEPTED (real divergence). The RN
+    `MoneyField` stores integer **cents** in the param and validates the cents (`v <= 0`), so
+    `0.004€ → round(0.4) = 0 → disabled`. My port stored euros-strings and validated raw
+    euros (`0.004 > 0 → enabled`), then coerced to 0 cents → a zero-value financial send.
+    Fixed `isMissing` to validate the **coerced** value (`coerce(field, raw) <= 0`), matching
+    the reference's effective behavior; added a sub-cent regression test. Lesson: when a port
+    changes WHERE a value is converted (keystroke vs submit), re-check every guard that ran on
+    the old representation.
+  - Codex P2 "confirm no-field danger commands (closeSession)" — REJECTED. The RN reference
+    `onPick` is byte-identical: `if (cmd.fields.length === 0) doRun(cmd.key, {})` — it also
+    auto-runs `closeSession` (danger, no fields) with no confirm. Faithful to SSOT → no change.
+  - Copilot "e2e mock resolves null for any unconfigured command → hides typos" — ACCEPTED
+    (test hardening, no SSOT bearing). Mock now resolves null only for the 5 void backend
+    commands (`Result<(), String>`: configure/connect/disconnect/enable_ecr_printing/reprint)
+    and THROWS for any other unmocked command, so a forgotten `setResponse` fails loudly.
+  - Copilot "showToast setTimeout not cancelled" — ACCEPTED. Rapid runs let an older timer
+    clear a newer toast; store the id in a `useRef` and `clearTimeout` before rescheduling
+    (+ clear on unmount).
+  - Copilot "ConfigForm numOrUndef yields floats → u16/u32 IPC deserialize fails" — ACCEPTED.
+    `Number("1.5")=1.5` would fail serde on the Rust side; switched to `Number.parseInt` and
+    clamp `port` to 0..65535.
+  - Copilot ×2 "PROGRESS.md vitest count off" — ACCEPTED (doc). Reconciled to the actual count.
+  Note: Codex/Copilot on a Tauri port are strong at surfacing IPC-type and JS-representation
+  bugs (float→uint, euros→cents) that the RN reference never had because RN typed the value
+  natively — these are *port-introduced* and worth accepting even though the SSOT is silent.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the

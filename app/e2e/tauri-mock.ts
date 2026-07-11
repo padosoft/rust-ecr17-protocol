@@ -15,6 +15,17 @@ export function installTauriMock(): void {
   const responses = new Map<string, unknown>();
   let nextId = 1;
 
+  // Backend commands that return `Result<(), String>` (no payload). Any OTHER command that a
+  // test invokes without a configured response is a mistake (typo or forgotten setResponse) —
+  // we throw so the contract drift fails the test loudly instead of resolving a silent null.
+  const VOID_COMMANDS = new Set([
+    "configure",
+    "connect",
+    "disconnect",
+    "enable_ecr_printing",
+    "reprint",
+  ]);
+
   w.__TAURI_INTERNALS__ = {
     transformCallback(cb: (arg: unknown) => void) {
       const id = nextId++;
@@ -37,7 +48,10 @@ export function installTauriMock(): void {
         return null;
       }
       if (!responses.has(cmd)) {
-        return null; // void/unset commands resolve successfully
+        if (VOID_COMMANDS.has(cmd)) {
+          return null; // known no-payload commands resolve successfully
+        }
+        throw `Unmocked command "${cmd}" — call setResponse/setError first`;
       }
       const r = responses.get(cmd) as {
         __error?: boolean;

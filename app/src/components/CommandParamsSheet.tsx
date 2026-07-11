@@ -46,11 +46,12 @@ function isMissing(field: Field, raw: string | boolean): boolean {
   if (!field.required || field.kind === "bool") {
     return false;
   }
-  // A required amount must be a positive number — guard against submitting a
-  // zero-amount (or negative) financial transaction with the default empty/0 value.
+  // A required amount must coerce to a positive integer. We validate the *converted* value
+  // (cents for money), not the raw euros, so a sub-cent entry like "0.004" — which rounds to
+  // 0 cents — is rejected rather than silently sent as a zero-amount financial transaction.
   if (field.kind === "money" || field.kind === "number") {
-    const n = Number.parseFloat(String(raw));
-    return !Number.isFinite(n) || n <= 0;
+    const value = coerce(field, raw);
+    return typeof value !== "number" || value <= 0;
   }
   return String(raw).trim() === "";
 }

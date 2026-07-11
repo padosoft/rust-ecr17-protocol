@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BusyOverlay } from "./components/BusyOverlay";
 import { CommandPalette } from "./components/CommandPalette";
 import { CommandParamsSheet } from "./components/CommandParamsSheet";
@@ -23,6 +23,18 @@ function App() {
 
   const { connectionState, busy, lastProgress, connect, disconnect, run } = useEcr17(config);
 
+  // Track the pending auto-hide so rapid successive runs don't let an older timer clear a
+  // newer toast prematurely.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+    },
+    [],
+  );
+
   const onChangeConfig = useCallback((next: Ecr17Config) => {
     setConfig(next);
     saveConfig(next);
@@ -38,7 +50,10 @@ function App() {
     } else {
       setToast({ text: "OK", tone: "ok" });
     }
-    setTimeout(() => setToast(null), 2500);
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
   const doRun = useCallback(

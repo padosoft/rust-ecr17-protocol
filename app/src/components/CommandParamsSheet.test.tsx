@@ -57,4 +57,12 @@ describe("CommandParamsSheet", () => {
     await userEvent.type(amount, "1");
     expect(submit).toBeEnabled();
   });
+
+  it("keeps submit disabled for a sub-cent amount that rounds to zero (money-safety)", async () => {
+    render(<CommandParamsSheet command={payCmd} onClose={() => {}} onSubmit={() => {}} />);
+    const submit = screen.getByTestId("sheet-submit");
+    // 0.004 € parses as positive but coerces to 0 cents — must not be submittable.
+    await userEvent.type(screen.getByTestId("input-amountCents"), "0.004");
+    expect(submit).toBeDisabled();
+  });
 });

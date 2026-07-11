@@ -11,10 +11,17 @@ export function ConfigForm({ value, onChange }: Props) {
   const set = <K extends keyof Ecr17Config>(key: K, v: Ecr17Config[K]) =>
     onChange({ ...value, [key]: v });
 
-  const numOrUndef = (s: string): number | undefined => {
+  // The Rust config deserializes these as integers (u16 port, u32 timeouts), so coerce to a
+  // whole number — a float like `1.5` would fail IPC deserialization.
+  const intOrUndef = (s: string): number | undefined => {
     if (s.trim() === "") return undefined;
-    const n = Number(s);
+    const n = Number.parseInt(s, 10);
     return Number.isFinite(n) ? n : undefined;
+  };
+
+  const portOrUndef = (s: string): number | undefined => {
+    const n = intOrUndef(s);
+    return n === undefined ? undefined : Math.min(65535, Math.max(0, n));
   };
 
   return (
@@ -37,7 +44,7 @@ export function ConfigForm({ value, onChange }: Props) {
             className="input"
             type="number"
             value={value.port ?? ""}
-            onChange={(e) => set("port", numOrUndef(e.currentTarget.value))}
+            onChange={(e) => set("port", portOrUndef(e.currentTarget.value))}
             data-testid="cfg-port"
           />
         </label>
@@ -82,7 +89,7 @@ export function ConfigForm({ value, onChange }: Props) {
             className="input"
             type="number"
             value={value.responseTimeoutMs ?? ""}
-            onChange={(e) => set("responseTimeoutMs", numOrUndef(e.currentTarget.value))}
+            onChange={(e) => set("responseTimeoutMs", intOrUndef(e.currentTarget.value))}
             data-testid="cfg-responseTimeoutMs"
           />
         </label>
