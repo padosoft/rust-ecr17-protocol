@@ -23,26 +23,28 @@ function initialValues(command: CommandDef): RawValues {
   return v;
 }
 
-// Converts a raw form value to the typed value the command expects.
-function coerce(field: Field, raw: string | boolean): unknown {
+// Converts a raw form value to the typed value the command expects. `raw` may be `undefined`
+// on the first render after `command` becomes non-null, before the init effect runs — treat
+// it as empty so we never coerce the literal string "undefined".
+function coerce(field: Field, raw: string | boolean | undefined): unknown {
   switch (field.kind) {
     case "bool":
       return raw === true;
     case "money": {
       // Entered in euros; sent as integer cents.
-      const euros = Number.parseFloat(String(raw));
+      const euros = Number.parseFloat(String(raw ?? ""));
       return Number.isFinite(euros) ? Math.round(euros * 100) : 0;
     }
     case "number": {
-      const n = Number.parseInt(String(raw), 10);
+      const n = Number.parseInt(String(raw ?? ""), 10);
       return Number.isFinite(n) ? n : 0;
     }
     default:
-      return String(raw);
+      return String(raw ?? "");
   }
 }
 
-function isMissing(field: Field, raw: string | boolean): boolean {
+function isMissing(field: Field, raw: string | boolean | undefined): boolean {
   if (!field.required || field.kind === "bool") {
     return false;
   }
@@ -53,7 +55,7 @@ function isMissing(field: Field, raw: string | boolean): boolean {
     const value = coerce(field, raw);
     return typeof value !== "number" || value <= 0;
   }
-  return String(raw).trim() === "";
+  return String(raw ?? "").trim() === "";
 }
 
 export function CommandParamsSheet({ command, onClose, onSubmit }: Props) {
