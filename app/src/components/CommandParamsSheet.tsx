@@ -121,7 +121,13 @@ export function CommandParamsSheet({ command, onClose, onSubmit }: Props) {
             </span>
             {command.label}
           </h2>
-          <button type="button" className="btn btn--sm" onClick={onClose} data-testid="sheet-close">
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={onClose}
+            aria-label="Close"
+            data-testid="sheet-close"
+          >
             ✕
           </button>
         </div>
@@ -166,6 +172,7 @@ export function CommandParamsSheet({ command, onClose, onSubmit }: Props) {
                   id={fieldId(f.name)}
                   className="input"
                   type={f.kind === "money" || f.kind === "number" ? "number" : "text"}
+                  step={f.kind === "money" ? "0.01" : f.kind === "number" ? "1" : undefined}
                   value={String(values[f.name] ?? "")}
                   placeholder={f.placeholder}
                   onChange={(e) => {

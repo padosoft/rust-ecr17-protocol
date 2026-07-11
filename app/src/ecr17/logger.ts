@@ -67,8 +67,11 @@ export function download(): void {
     const a = document.createElement("a");
     a.href = url;
     a.download = "ecr17-debug.log";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    // Revoke on the next tick so the browser/WebView has started the download first.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   } catch {
     // best-effort; ignore
   }

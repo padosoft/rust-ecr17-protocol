@@ -321,6 +321,16 @@
   Note: Codex/Copilot on a Tauri port are strong at surfacing IPC-type and JS-representation
   bugs (float→uint, euros→cents) that the RN reference never had because RN typed the value
   natively — these are *port-introduced* and worth accepting even though the SSOT is silent.
+- **Remote PR review (MACRO 7, PR #9) — second Copilot pass** after the fixes: 5 new polish
+  nits, all accepted (web-only, no SSOT bearing): download() revokes the object URL on the
+  next tick (+append/remove the anchor) so the browser starts the download first; money
+  `<input type=number>` gets `step="0.01"` (integers `step="1"`) so `6.50` isn't marked
+  invalid; the mock throws `new Error(...)` instead of raw strings; the sheet close "✕"
+  button gets `aria-label="Close"`. Codex re-raised the no-field-danger-confirm P2 a second
+  time — REJECTED again (SSOT `onPick` auto-runs it; a confirm dialog would diverge). Note:
+  GitHub re-anchors a bot's ORIGINAL review comments onto the newest commit, so already-fixed
+  items reappear in the comment list — dedupe by comment **id** (the first pass was ids
+  `35596…`, genuinely-new ones `35651…`) rather than assuming every listed comment is fresh.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the

@@ -51,7 +51,7 @@ export function installTauriMock(): void {
         if (VOID_COMMANDS.has(cmd)) {
           return null; // known no-payload commands resolve successfully
         }
-        throw `Unmocked command "${cmd}" — call setResponse/setError first`;
+        throw new Error(`Unmocked command "${cmd}" — call setResponse/setError first`);
       }
       const r = responses.get(cmd) as {
         __error?: boolean;
@@ -60,7 +60,7 @@ export function installTauriMock(): void {
         value?: unknown;
       };
       if (r && typeof r === "object" && r.__error) {
-        throw r.message ?? "error";
+        throw new Error(r.message ?? "error");
       }
       if (r && typeof r === "object" && typeof r.__delayMs === "number") {
         await new Promise((res) => setTimeout(res, r.__delayMs));
