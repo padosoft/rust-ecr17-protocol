@@ -1,0 +1,140 @@
+name: release
+
+# Fires when a semver tag is pushed (e.g. `v1.0.0`):
+#   1. publishes the `ecr17-protocol` crate to crates.io, and
+#   2. builds the Tauri desktop installers (Windows / macOS / Linux) and attaches
+#      them to the GitHub Release for that tag.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish-crate:
+    name: cargo publish (crates.io)
+    # Only ever run for a v* tag — never for a branch ref (e.g. a manual
+    # workflow_dispatch), where the version/tag assumptions below don't hold.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Guard: the tag must match the crate version (e.g. tag v1.0.0 == 1.0.0).
+      - name: Verify tag matches crate version
+        run: |
+          crate_ver=$(grep -m1 '^version' crates/ecr17-protocol/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')
+          tag_ver="${GITHUB_REF_NAME#v}"
+          echo "crate=$crate_ver tag=$tag_ver"
+          test "$crate_ver" = "$tag_ver"
+
+      # The token is scoped to THIS step only (least exposure — the other steps in
+      # this job never see it). The skip logic lives in the script (not an `if:`,
+      # which can't read the secrets context): it no-ops when no token is set (a
+      # repo that publishes by hand) and is idempotent — it skips when this version
+      # is already on crates.io, so the release never goes red.
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "CARGO_REGISTRY_TOKEN not set — skipping publish (crate is published by hand)."
+            exit 0
+          fi
+          ver="${GITHUB_REF_NAME#v}"
+          code=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/ecr17-protocol/$ver")
+          # Publish ONLY on a definitive 404 (version not yet on crates.io). A 200
+          # means it's already published; anything else (5xx/429/000 — a transient
+          # crates.io/network blip) is inconclusive, so we skip rather than risk a
+          # flaky/red release or a spurious publish attempt.
+          case "$code" in
+            404) cargo publish -p ecr17-protocol ;;
+            200) echo "ecr17-protocol $ver already on crates.io — skipping publish." ;;
+            *)   echo "crates.io returned HTTP $code (inconclusive) — skipping publish this run." ;;
+          esac
+
+  build-installers:
+    name: installers · ${{ matrix.name }}
+    # Tag-only: the job passes `tagName: github.ref_name` to tauri-action, which is
+    # a release tag — a branch ref (manual dispatch) would create a bogus release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write # tauri-action creates/updates the GitHub Release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (.deb / AppImage)
+            os: ubuntu-22.04
+            target: ""
+            args: ""
+          - name: Windows (.msi / NSIS)
+            os: windows-latest
+            target: ""
+            args: ""
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+            target: aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin"
+          - name: macOS (Intel)
+            os: macos-latest
+            target: x86_64-apple-darwin
+            args: "--target x86_64-apple-darwin"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tauri Linux dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Only the macOS rows need an extra target; the Linux/Windows rows build for
+      # the host, so avoid passing an empty `targets:` to the toolchain action.
+      - name: Add Rust target
+        if: matrix.target != ''
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build & release the Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_name }}
+          releaseName: "ECR17 Control Panel ${{ github.ref_name }}"
+          releaseBody: |
+            Desktop installers for the ECR17 Control Panel and the `ecr17-protocol`
+            crate release. The protocol core is published to
+            [crates.io](https://crates.io/crates/ecr17-protocol).
+
+            See the [README](https://github.com/padosoft/rust-ecr17-protocol#readme)
+            for usage. Installers below are unsigned — your OS may warn on first launch.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

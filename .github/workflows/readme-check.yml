@@ -1,0 +1,27 @@
+name: readme-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: readme-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: root README mirrors the crate README
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The root README.md must be a byte-identical copy of the canonical
+      # crates.io front page (crates/ecr17-protocol/README.md). Regenerate with
+      # `node scripts/sync-readme.mjs` if this fails.
+      - name: Check README sync
+        run: node scripts/sync-readme.mjs --check
