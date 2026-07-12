@@ -369,6 +369,15 @@
   and attaches them to the GitHub Release (needs `permissions: contents: write` +
   `GITHUB_TOKEN`). Linux needs the same apt webkit deps as `tauri-check.yml`; macOS
   needs the target added via `dtolnay/rust-toolchain{targets}`.
+- **crates.io API REQUIRES a descriptive `User-Agent`** — a `curl` with the default
+  UA gets **403** (not 404), so the release.yml idempotency probe must send
+  `curl -A "..."`, else a brand-new version reads as "inconclusive" and never
+  auto-publishes. Verified: no-UA → 403, `-A "..."` → 200 for a published version.
+- **v1.0.0 RELEASED (2026-07-12):** `cargo publish -p ecr17-protocol` succeeded from a
+  clean `main` (GNU toolchain) → **live on crates.io** (`max_version` 1.0.0, 17 files,
+  ~46 KiB). Tag `v1.0.0` pushed → `release.yml` builds the installer matrix + creates the
+  GitHub Release. NOTE: two stray "release" workflow runs showed `failure`/0s on the
+  branch pushes — startup noise, harmless; the real run is the one on the `v1.0.0` tag.
 - **crates.io publish is done LOCALLY for v1.0.0** — a usable token is in
   `~/.cargo/credentials.toml` (`[registry]`), and there is **no `CARGO_REGISTRY_TOKEN`
   repo secret** (verified `gh secret list` empty). `cargo publish --dry-run -p

@@ -45,7 +45,11 @@ jobs:
             exit 0
           fi
           ver="${GITHUB_REF_NAME#v}"
-          code=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/ecr17-protocol/$ver")
+          # crates.io's API REQUIRES a descriptive User-Agent — a request without
+          # one gets 403 (not 404), which would otherwise be read as "inconclusive"
+          # and never let a genuinely-new version publish.
+          code=$(curl -s -A "ecr17-protocol release workflow (github.com/padosoft/rust-ecr17-protocol)" \
+            -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/ecr17-protocol/$ver")
           # Publish ONLY on a definitive 404 (version not yet on crates.io). A 200
           # means it's already published; anything else (5xx/429/000 — a transient
           # crates.io/network blip) is inconclusive, so we skip rather than risk a
