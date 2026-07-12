@@ -46,11 +46,15 @@ jobs:
           fi
           ver="${GITHUB_REF_NAME#v}"
           code=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/ecr17-protocol/$ver")
-          if [ "$code" = "200" ]; then
-            echo "ecr17-protocol $ver already on crates.io — skipping publish."
-          else
-            cargo publish -p ecr17-protocol
-          fi
+          # Publish ONLY on a definitive 404 (version not yet on crates.io). A 200
+          # means it's already published; anything else (5xx/429/000 — a transient
+          # crates.io/network blip) is inconclusive, so we skip rather than risk a
+          # flaky/red release or a spurious publish attempt.
+          case "$code" in
+            404) cargo publish -p ecr17-protocol ;;
+            200) echo "ecr17-protocol $ver already on crates.io — skipping publish." ;;
+            *)   echo "crates.io returned HTTP $code (inconclusive) — skipping publish this run." ;;
+          esac
 
   build-installers:
     name: installers · ${{ matrix.name }}
@@ -95,8 +99,12 @@ jobs:
             libxdo-dev
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+
+      # Only the macOS rows need an extra target; the Linux/Windows rows build for
+      # the host, so avoid passing an empty `targets:` to the toolchain action.
+      - name: Add Rust target
+        if: matrix.target != ''
+        run: rustup target add ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:

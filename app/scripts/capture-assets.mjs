@@ -100,8 +100,12 @@ const browser = await chromium.launch();
 async function appPage() {
   const page = await browser.newPage({ viewport: { width: 1180, height: 820 }, deviceScaleFactor: 2 });
   await page.addInitScript(MOCK);
-  await page.goto("http://localhost:1420", { waitUntil: "networkidle" });
-  await page.evaluate(() => localStorage.clear());
+  // Clear storage BEFORE the app reads it on mount (a fresh Playwright context is
+  // already empty; this makes the clean-config intent explicit and order-correct).
+  await page.addInitScript(() => localStorage.clear());
+  // "load" (not "networkidle"): Vite's HMR websocket keeps a connection open, so
+  // networkidle can stall; "load" is deterministic for this static capture.
+  await page.goto("http://localhost:1420", { waitUntil: "load" });
   return page;
 }
 
