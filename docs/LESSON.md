@@ -409,6 +409,18 @@
   — **`git fetch` + `git pull` FIRST** (they may be stale), edit near the top of the
   README, commit, push to `main`.
 
+## Tauri icons vs image optimizers (v1.0.1 CI failure)
+- **Tauri `generate_context!` REQUIRES RGBA (color-type 6) PNG icons.** An
+  `[ImgBot] Optimize images` PR palette-quantized `app/src-tauri/icons/*.png`
+  (RGBA → color-type 3) to save bytes and was merged to `main` **after** the v1.0.0
+  tag — so v1.0.0's installers built (RGBA icons) but the next build panicked:
+  `proc macro panicked … icon .../32x32.png is not RGBA`. Diagnose PNG color type via
+  byte 25: `xxd -s 25 -l 1 -p icon.png` (`06`=RGBA good, `03`=palette bad). Fix: restore
+  the RGBA icons (`git checkout <good-ref> -- app/src-tauri/icons/`) and add a repo-root
+  **`.imgbotconfig`** with `"ignoredFiles": ["app/src-tauri/icons/*"]` so ImgBot never
+  re-quantizes them. NOTE: `tauri-check.yml` does not use `--locked`, so it also picks up
+  a newer `tauri-build` that enforces this more strictly than the one that built v1.0.0.
+
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the
   official public URL only; do not vendor the full vendor PDF into the repo.

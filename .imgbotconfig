@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dabutvin/ImgBot/master/schema/imgbotConfig.json",
+  "ignoredFiles": [
+    "app/src-tauri/icons/*"
+  ]
+}
