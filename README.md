@@ -170,7 +170,11 @@ async fn main() -> ecr17_protocol::Result<()> {
         debug: Some(false),
     };
 
-    let transport = TcpTransport::new(config.host.clone(), 10000, Duration::from_secs(5));
+    let transport = TcpTransport::new(
+        config.host.clone(),
+        config.port.unwrap_or(10000),
+        Duration::from_secs(5),
+    );
     let mut client = Ecr17Client::new(transport, config);
 
     client.connect().await?;
@@ -341,9 +345,10 @@ built in CI and attached to each GitHub Release.
 ## 🧪 Testing
 
 ```bash
-cargo test --all-features          # 108 unit / flow / money-safety tests
-cargo clippy --all-targets -- -D warnings
-cargo fmt --check
+# Exactly what CI (rust-tests) runs:
+cargo test --workspace --all-features            # 108 unit / flow / money-safety tests
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
 
 # Frontend (from app/):
 bun run typecheck && bun run test  # 12 Vitest

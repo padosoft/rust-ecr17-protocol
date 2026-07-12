@@ -381,14 +381,15 @@
   — plus regenerate both lockfiles (`cargo update -p ecr17-protocol` at the root and
   `cargo update -p app` in `app/src-tauri`; pure resolution, no build, so the spaced
   path / windres issue doesn't bite).
-- **CI gotcha — `secrets` is NOT allowed in `if:` conditionals (Codex P1, PR #10).**
-  `if: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}` is INVALID — GitHub Actions does not
-  expose the `secrets` context to `if:`. Map the secret to a **job-level `env:`**
-  (`env: CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}`) and test
-  `if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}` instead (the `env` context IS allowed
-  in step `if:`). That job-level env also feeds `cargo publish`, so the redundant
-  step-level `env:` is removed. Without this, pushing the release tag can fail before
-  `cargo publish` even runs.
+- **CI gotcha — `secrets` is NOT allowed in `if:` conditionals (Codex P1, PR #10) AND
+  don't hoist a secret to job-level `env` to work around it (over-broad exposure).**
+  `if: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}` is INVALID — GitHub Actions doesn't
+  expose the `secrets` context to `if:`. The tempting fix (map it to a **job-level**
+  `env` and test `if: env.X != ''`) works but leaks the token into EVERY step of the
+  job (the commit security review flagged it). Correct fix: **no `if:` at all** — put
+  the secret on the **publish step's own `env:`** (least exposure) and do the skip in
+  the script: `if [ -z "$CARGO_REGISTRY_TOKEN" ]; then echo skip; exit 0; fi`. Same
+  no-op-when-absent + idempotent behavior, secret scoped to the one step that needs it.
 - **PR #10 had TWO bots reviewing** (like MACRO 7): Copilot (2 nits — camelCase method
   names in the money-safety prose → snake_case; `workflow_dispatch` running tag-only
   jobs on a branch → `if: startsWith(github.ref,'refs/tags/v')` on both jobs) and

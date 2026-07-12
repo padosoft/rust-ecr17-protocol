@@ -16,11 +16,6 @@ jobs:
     # workflow_dispatch), where the version/tag assumptions below don't hold.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    # Map the secret to a job-level env: GitHub Actions does NOT allow the
-    # `secrets` context in `if:` conditionals, but the `env` context IS allowed —
-    # so the publish step can no-op when no token is configured.
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,12 +31,19 @@ jobs:
           echo "crate=$crate_ver tag=$tag_ver"
           test "$crate_ver" = "$tag_ver"
 
-      # Idempotent: skips if this version is already on crates.io (e.g. published
-      # manually), and no-ops when the CARGO_REGISTRY_TOKEN secret isn't set — so
-      # this job never turns the release red for a repo that publishes by hand.
+      # The token is scoped to THIS step only (least exposure — the other steps in
+      # this job never see it). The skip logic lives in the script (not an `if:`,
+      # which can't read the secrets context): it no-ops when no token is set (a
+      # repo that publishes by hand) and is idempotent — it skips when this version
+      # is already on crates.io, so the release never goes red.
       - name: Publish to crates.io
-        if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "CARGO_REGISTRY_TOKEN not set — skipping publish (crate is published by hand)."
+            exit 0
+          fi
           ver="${GITHUB_REF_NAME#v}"
           code=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/ecr17-protocol/$ver")
           if [ "$code" = "200" ]; then
