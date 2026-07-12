@@ -381,6 +381,18 @@
   — plus regenerate both lockfiles (`cargo update -p ecr17-protocol` at the root and
   `cargo update -p app` in `app/src-tauri`; pure resolution, no build, so the spaced
   path / windres issue doesn't bite).
+- **CI gotcha — `secrets` is NOT allowed in `if:` conditionals (Codex P1, PR #10).**
+  `if: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}` is INVALID — GitHub Actions does not
+  expose the `secrets` context to `if:`. Map the secret to a **job-level `env:`**
+  (`env: CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}`) and test
+  `if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}` instead (the `env` context IS allowed
+  in step `if:`). That job-level env also feeds `cargo publish`, so the redundant
+  step-level `env:` is removed. Without this, pushing the release tag can fail before
+  `cargo publish` even runs.
+- **PR #10 had TWO bots reviewing** (like MACRO 7): Copilot (2 nits — camelCase method
+  names in the money-safety prose → snake_case; `workflow_dispatch` running tag-only
+  jobs on a branch → `if: startsWith(github.ref,'refs/tags/v')` on both jobs) and
+  Codex (the P1 `secrets`-in-`if` above). All three accepted; all valid.
 - **Sibling cross-port links (T8.3):** the RN + Laravel repos each carry an "other
   ports" callout that must now list Rust/Tauri. Their local clones live at
   `../../ReactNative/react-native-ecr17-protocol` and `C:/xampp/htdocs/laravel-ecr17`
