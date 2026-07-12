@@ -112,7 +112,7 @@ async function appPage() {
   await page.evaluate(() => window.__ecr17mock.emit("ecr17:connection", "connected"));
   await page.evaluate(() =>
     window.__ecr17mock.setResponse("status", {
-      terminalId: "12345678", terminalDateTime: "2026-07-12 09:41", status: 2, softwareRelease: "1.4.2",
+      terminalId: "12345678", terminalDateTime: "2026-07-12T09:41:00", status: 2, softwareRelease: "1.4.2",
     }),
   );
   await page.getByTestId("cmd-status").click();
