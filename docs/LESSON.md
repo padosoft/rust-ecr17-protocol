@@ -339,6 +339,54 @@
   field. Lesson: a "missing required value" finding is moot when an upstream required-field
   guard already blocks the empty case — verify the whole path before "hardening" a fallback.
 
+## Packaging, docs & release (MACRO 8)
+- **README is authored ONCE, in `crates/ecr17-protocol/README.md`** (the crates.io
+  front page) and mirrored **byte-identically** to the root `README.md` by
+  `scripts/sync-readme.mjs`. It works because every badge/image/link uses an
+  **absolute** URL (`https://raw.githubusercontent.com/padosoft/rust-ecr17-protocol/main/…`)
+  — no path rewriting, so a plain copy is correct on both GitHub and crates.io.
+  `node scripts/sync-readme.mjs` writes the mirror; `--check` exits 1 if stale.
+  A `readme-check` CI job runs `--check` on every push/PR so a stale mirror never
+  lands. **Never hand-edit the root `README.md`** — edit the crate copy and re-sync.
+- **Screenshots/banner are generated, not hand-shot.** `app/scripts/capture-assets.mjs`
+  drives Playwright's bundled Chromium: the banner is a standalone `setContent`
+  HTML page (no server), and the two app shots load the real Vite dev server on
+  `:1420` with the SAME `window.__TAURI_INTERNALS__` IPC mock the e2e suite installs
+  (inlined so the script is standalone). To (re)generate: `bun run dev` in `app/`
+  (wait for `:1420`), then `node scripts/capture-assets.mjs` → `resources/banner.png`
+  + `resources/screenshots/{control-panel,params-sheet}.png`. Deterministic, no POS.
+  - Banner layout gotcha: the 💳 emoji glyph renders WIDER than its `font-size` box
+    and bleeds left, so the subtitle clipped behind it. Fix = shrink the coin
+    (168px) + push it right (`right:60px`) + cap the `<p>` `max-width:820px` so text
+    wraps before the card. Always eyeball the rendered PNG (Read it) after a change.
+- **Release pipeline (`.github/workflows/release.yml`, on tag `v*`):** two jobs.
+  (1) `publish-crate` on ubuntu: verifies the tag == crate version, then a **guarded,
+  idempotent** publish — `if: secrets.CARGO_REGISTRY_TOKEN != ''` (no-ops when the
+  secret is absent) and skips when the crates.io API already returns 200 for that
+  version (so a manual publish doesn't turn the release red). (2) `build-installers`
+  matrix (ubuntu-22.04 / windows-latest / macOS aarch64 + x86_64) using
+  **`tauri-apps/tauri-action@v0`**, which builds the bundles (`bundle.targets:"all"`)
+  and attaches them to the GitHub Release (needs `permissions: contents: write` +
+  `GITHUB_TOKEN`). Linux needs the same apt webkit deps as `tauri-check.yml`; macOS
+  needs the target added via `dtolnay/rust-toolchain{targets}`.
+- **crates.io publish is done LOCALLY for v1.0.0** — a usable token is in
+  `~/.cargo/credentials.toml` (`[registry]`), and there is **no `CARGO_REGISTRY_TOKEN`
+  repo secret** (verified `gh secret list` empty). `cargo publish --dry-run -p
+  ecr17-protocol --allow-dirty` packages 17 files, ~46KiB compressed, verifies clean
+  under the GNU toolchain. The GNU box builds the pure crate fine (only the Tauri
+  *app* is blocked locally — installers come from CI). Did NOT copy the user's token
+  into a GH secret unprompted; the CI publish job stays green by being guarded.
+- **A version bump touches FOUR files:** `crates/ecr17-protocol/Cargo.toml`,
+  `app/src-tauri/Cargo.toml`, `app/src-tauri/tauri.conf.json`, `app/package.json`
+  — plus regenerate both lockfiles (`cargo update -p ecr17-protocol` at the root and
+  `cargo update -p app` in `app/src-tauri`; pure resolution, no build, so the spaced
+  path / windres issue doesn't bite).
+- **Sibling cross-port links (T8.3):** the RN + Laravel repos each carry an "other
+  ports" callout that must now list Rust/Tauri. Their local clones live at
+  `../../ReactNative/react-native-ecr17-protocol` and `C:/xampp/htdocs/laravel-ecr17`
+  — **`git fetch` + `git pull` FIRST** (they may be stale), edit near the top of the
+  README, commit, push to `main`.
+
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the
   official public URL only; do not vendor the full vendor PDF into the repo.

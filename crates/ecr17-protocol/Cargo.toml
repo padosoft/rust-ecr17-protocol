@@ -1,6 +1,6 @@
 [package]
 name = "ecr17-protocol"
-version = "0.1.0"
+version = "1.0.0"
 description = "Italian ECR17 payment protocol (Nexi Group POS terminals) over LAN — pure-Rust protocol engine plus an async client and an optional tokio TCP transport."
 edition.workspace = true
 license.workspace = true
