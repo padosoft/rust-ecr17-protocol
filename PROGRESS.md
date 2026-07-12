@@ -51,10 +51,11 @@ Session 2026-07-12. **MACRO 0–8 COMPLETE — the roadmap is done and `ecr17-pr
 is published to crates.io** (`max_version` 1.0.0). Tag `v1.0.0` fires `release.yml` (crate
 publish guarded/idempotent + Tauri installer matrix attached to the GitHub Release). Both
 sibling repos (React Native, Laravel) now cross-link the Rust/Tauri port on `main`.
-This `chore/release-housekeeping` branch fixes one latent nit in `release.yml` (the
-crates.io version-check `curl` needs a User-Agent — see docs/LESSON.md) and records the
-release. NEXT: nothing roadmap-blocking — merge this housekeeping PR; optionally add the
-`CARGO_REGISTRY_TOKEN` repo secret if future releases should auto-publish from CI.
+The `CARGO_REGISTRY_TOKEN` repo secret is now set, so releases auto-publish from CI.
+**v1.0.1** is a release-pipeline validation patch (no library source changes since
+1.0.0 — only the release/CI tooling hardening from PR #11): bumping it and tagging
+`v1.0.1` exercises the CI `publish-crate` job end-to-end (secret → `cargo publish`).
+NEXT: merge this bump → tag `v1.0.1` → confirm CI auto-published 1.0.1 to crates.io.
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.
