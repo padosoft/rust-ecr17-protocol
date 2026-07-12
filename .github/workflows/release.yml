@@ -12,6 +12,9 @@ on:
 jobs:
   publish-crate:
     name: cargo publish (crates.io)
+    # Only ever run for a v* tag — never for a branch ref (e.g. a manual
+    # workflow_dispatch), where the version/tag assumptions below don't hold.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +49,9 @@ jobs:
 
   build-installers:
     name: installers · ${{ matrix.name }}
+    # Tag-only: the job passes `tagName: github.ref_name` to tauri-action, which is
+    # a release tag — a branch ref (manual dispatch) would create a bogus release.
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write # tauri-action creates/updates the GitHub Release
     strategy:

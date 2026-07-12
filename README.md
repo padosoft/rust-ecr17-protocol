@@ -211,8 +211,8 @@ async fn main() -> ecr17_protocol::Result<()> {
 This crate drives a terminal that **charges real cards**, so payment integrity is
 a first-class, tested invariant — not an afterthought:
 
-- **A financial command is never blindly re-sent.** `pay`, `payExtended`,
-  `reverse`, `preAuth`, `incrementalAuth`, `preAuthClosure` are **not** replayed
+- **A financial command is never blindly re-sent.** `pay`, `pay_extended`,
+  `reverse`, `pre_auth`, `incremental_auth`, `pre_auth_closure` are **not** replayed
   after a transport drop/reconnect (a blind retry can double-charge). The decision
   lives in one tiny, unit-locked place — `should_retry_after_reconnect` — which
   only ever allows retrying safe/idempotent ops (`status`, `totals`).
