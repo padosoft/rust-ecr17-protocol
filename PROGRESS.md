@@ -25,21 +25,28 @@ Plan: `docs/PLAN.md`. Reference package: `../ReactNative/react-native-ecr17-prot
   - [x] T3.1 `response.rs` (all raw parsers + outcome + DccInfo) — tests ported  ✅
 - [x] **MACRO 4 — Session & money-safety** (`feat/session-retry`)  ✅ MERGED (PR #6, d8672ba)
 - [x] **MACRO 5 — Client + TCP** (`feat/client-and-tcp`)  ✅ MERGED (PR #7)
-- [ ] **MACRO 6 — Tauri backend** (`feat/tauri-backend`)  ← IN PROGRESS (impl done; verified by CI tauri-check)
+- [x] **MACRO 6 — Tauri backend** (`feat/tauri-backend`)  ✅ MERGED (PR #8, 26099a7)
   - [x] T6.1 `src-tauri` bridge: managed Ecr17Client<TcpTransport> state, one #[tauri::command] per command, events (ecr17:progress/receipt/connection)  ✅
   - [x] T6.2 backend serde-round-trip tests + tauri-check CI (webkit deps, cargo clippy+test)  ✅
-  - [ ] push → CI (incl. tauri-check) green → PR → Copilot → merge
-- [ ] MACRO 7 — Control panel UI (`feat/control-panel-ui`)
+- [ ] **MACRO 7 — Control panel UI** (`feat/control-panel-ui`)  ← IN PROGRESS (impl + tests done; committing)
+  - [x] T7.1 TS data model + command metadata + result/PAN-mask/log/storage helpers  ✅
+  - [x] T7.2 typed Tauri invoke/event bridge + `useEcr17` hook  ✅
+  - [x] T7.3 components (ConnectionBar, CommandPalette, ParamsSheet, BusyOverlay, LogConsole, ConfigForm) + App + dark theme  ✅
+  - [x] T7.4 Vitest (12) + Playwright (12, with a full `@tauri-apps/api` IPC mock) — all green  ✅
+  - [ ] commit → local Copilot review → push → CI → PR → Copilot → merge
 - [ ] MACRO 8 — Packaging, docs, release (`chore/release-1.0`): README, release CI,
       cross-port README links (align RN+Laravel first!), knowledge consolidation, publish+tag+release
 
 ## Current position
-Session 2026-07-10. MACRO 0-5 merged (protocol crate COMPLETE + publishable).
-On branch `feat/tauri-backend`: app/src-tauri bridges Ecr17Client<TcpTransport> — 19
-#[tauri::command]s (configure/connect/disconnect/is_connected + all 14 protocol cmds) +
-progress/receipt/connection events; backend serde tests; new tauri-check CI (webkit deps).
-Backend not locally compilable (GNU windres) → verified by CI. NEXT: push → tauri-check
-green → PR → Copilot → merge. Then MACRO 7 (control-panel UI + Playwright).
+Session 2026-07-10. MACRO 0-6 merged (protocol crate COMPLETE + publishable; Tauri backend
+bridge on main). On branch `feat/control-panel-ui`: full web UI — typed Tauri bridge,
+`useEcr17` hook, command palette + dynamic params sheet (money→cents coercion, required
+validation, PAN masking in the log), live log console with download, config form with
+localStorage persistence, busy overlay, connection bar. Frontend gates ALL green: Biome
+lint clean, `tsc --noEmit` clean, 12 Vitest, `vite build` ok, 12 Playwright (with a full
+`window.__TAURI_INTERNALS__` invoke/event mock). NEXT: commit → local Copilot review →
+push → CI (frontend-checks + e2e) → PR → Copilot → merge. Then MACRO 8 (README, release
+CI, cross-port links, publish+tag+release).
 
 Process note: small macro-tasks bundle their subtasks into a single PR → main (still the
 full validation loop). Larger macros (4, 5, 7) may use sub-PRs to the macro branch.

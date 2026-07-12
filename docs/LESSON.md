@@ -199,6 +199,41 @@
 - (e2e) Playwright drives the Vite frontend with Tauri IPC mocked
   (`@tauri-apps/api/mocks` `mockIPC`) for deterministic UI coverage without a POS.
 
+## Frontend / control panel (MACRO 7)
+- **Tauri v2 IPC contract (verified by grepping `node_modules/@tauri-apps/api`):** the
+  frontend does NOT need `@tauri-apps/api/mocks`. `invoke(cmd, args)` calls
+  `window.__TAURI_INTERNALS__.invoke(cmd, args, opts)`; `listen(event, cb)` calls
+  `invoke("plugin:event|listen", { event, target, handler: transformCallback(cb) })` and
+  the runtime later calls `window.__TAURI_INTERNALS__.callbacks[id]` (registered via
+  `transformCallback`). Our Playwright mock (`e2e/tauri-mock.ts`) installs
+  `window.__TAURI_INTERNALS__.{invoke,transformCallback,unregisterCallback}`, special-cases
+  `plugin:event|listen` to stash the handler, and exposes `window.__ecr17mock` with
+  `setResponse/setError/setDelayed/emit/reset`. This is more faithful than mockIPC (tests
+  the real event path) and needs no bundler cooperation.
+- **Command names are snake_case, arg keys are camelCase.** A Rust `#[tauri::command] fn
+  pay_extended(request: …)` is invoked as `invoke("pay_extended", { request })`. Serde
+  `rename_all="camelCase"` only touches the *struct fields*, not the command name or the
+  top-level arg key (which mirrors the Rust *parameter* name). Getting either wrong yields
+  a silent "command not found" at runtime.
+- **React event pooling bites `setState` updaters:** reading `e.currentTarget.value`
+  *inside* a `setValues(v => …)` updater returns null — the updater runs after the event
+  object is recycled. Capture `const val = e.currentTarget.value` BEFORE calling the
+  setter. (Hit in every onChange of the params sheet.)
+- **Biome a11y on a click-to-close modal backdrop:** `noStaticElementInteractions` +
+  `useKeyWithClickEvents` fire on a `<div onClick>` backdrop, and `stopPropagation` on an
+  inner div trips them again. Clean fix that keeps click-outside-to-close: render a
+  full-screen transparent `<button aria-label="Close">` *behind* the panel (z-index) for
+  the outside-click, give the panel `role="dialog" aria-modal`, and add a `window` Escape
+  keydown listener for the keyboard path — no `stopPropagation`, no biome-ignore.
+- **Biome `noLabelWithoutControl` + conditional control:** a `<label>` whose control is
+  rendered via a ternary can't be statically proven to wrap a control, so biome flags it
+  even though the association is valid at runtime. Fix explicitly with `htmlFor={id}` on
+  the label + matching `id` on each branch's input (use `useId()` for a stable base).
+- **Biome `useExhaustiveDependencies` for "run on change X" effects:** an effect that must
+  re-run when a value changes but whose body only reads refs (e.g. auto-scroll on new log
+  entries) is legitimately flagged. A `// biome-ignore lint/correctness/useExhaustiveDependencies:
+  <reason>` on the line above the `useEffect` is the correct, honest resolution.
+
 ## Protocol facts — verified against the reference (do NOT "fix")
 - **Receipt-text (128 bytes) is RIGHT-aligned** in the payment family (`P`/`X`/`p`) and
   pre-auth follow-ups (`i`/`c`): leading spaces, text at the tail. The C++
@@ -233,6 +268,76 @@
   → the PR's `requested_reviewers` then shows `{login: "Copilot", type: "Bot"}`. Re-run it
   after each push to re-request the review.
 - CI (rust-tests + frontend-checks + e2e) went green on the FIRST push of the bootstrap PR.
+- **Copilot local review (MACRO 7 control-panel UI):** 10 items, verdicts anchored to the
+  RN reference as SSOT:
+  1. ACCEPTED — required money/number fields lacked a positive-amount guard (`isMissing`
+     only checked non-empty), so `pay`/`preAuth`/… accepted `0`/negative. The RN reference
+     explicitly guards `typeof v !== "number" || v <= 0` ("guard against a zero-amount
+     financial transaction"). Ported it + added a regression test (`keeps submit disabled
+     for a zero or negative amount`).
+  2. REJECTED — "regex-scrub embedded PANs in errorDescription/rawXml": the SSOT
+     `maskSensitive` masks ONLY the `pan` key; a 13–19-digit regex would over-mask STANs
+     and diverge from the reference. Mine already matches the SSOT exactly.
+  3. REJECTED — "applyConfig before every run rebuilds the client (money-safety)": the RN
+     reference ALSO calls `applyConfig` inside `run()`, gated on a config *change*. The only
+     difference is my Tauri backend's `configure()` disconnects+rebuilds (RN updates in
+     place). But a config edit is an explicit operator action, only fires between
+     transactions (command buttons disabled while `busy`), and the follow-up command's
+     `ensure_connected()` is a FIRST send — not a replay. Double-charge protection lives in
+     `recover_after_error`/`should_retry_after_reconnect`, which still refuses to replay
+     financial commands. Faithful + safe → keep.
+  4–7,10. REJECTED — `isFailure` actionCode nuance, `vas ${responseId}` toast fallback,
+     unused `"number"` FieldKind, `maskPan("123")→"****"`, no upper amount bound: all match
+     the RN reference behavior verbatim (e.g. reference `maskPan` returns `'****'` for
+     `digits.length <= 4`). Faithful port → no change.
+  8–9. Confirmations (no action): Tauri IPC snake_case-command / camelCase-arg contract
+     verified against `lib.rs`; no blind financial retry (Disconnect disabled while busy).
+  Takeaway: for a faithful port, the SSOT is the arbiter — accept a review item only when
+  the reference agrees (here #1) and reject "improvements" that would diverge (#2), citing
+  the reference each time.
+- **Remote PR review (MACRO 7, PR #9) — Codex + Copilot:** 7 comments; 5 accepted, 2 rejected.
+  - Codex P2 "validate money AFTER cent conversion" — ACCEPTED (real divergence). The RN
+    `MoneyField` stores integer **cents** in the param and validates the cents (`v <= 0`), so
+    `0.004€ → round(0.4) = 0 → disabled`. My port stored euros-strings and validated raw
+    euros (`0.004 > 0 → enabled`), then coerced to 0 cents → a zero-value financial send.
+    Fixed `isMissing` to validate the **coerced** value (`coerce(field, raw) <= 0`), matching
+    the reference's effective behavior; added a sub-cent regression test. Lesson: when a port
+    changes WHERE a value is converted (keystroke vs submit), re-check every guard that ran on
+    the old representation.
+  - Codex P2 "confirm no-field danger commands (closeSession)" — REJECTED. The RN reference
+    `onPick` is byte-identical: `if (cmd.fields.length === 0) doRun(cmd.key, {})` — it also
+    auto-runs `closeSession` (danger, no fields) with no confirm. Faithful to SSOT → no change.
+  - Copilot "e2e mock resolves null for any unconfigured command → hides typos" — ACCEPTED
+    (test hardening, no SSOT bearing). Mock now resolves null only for the 5 void backend
+    commands (`Result<(), String>`: configure/connect/disconnect/enable_ecr_printing/reprint)
+    and THROWS for any other unmocked command, so a forgotten `setResponse` fails loudly.
+  - Copilot "showToast setTimeout not cancelled" — ACCEPTED. Rapid runs let an older timer
+    clear a newer toast; store the id in a `useRef` and `clearTimeout` before rescheduling
+    (+ clear on unmount).
+  - Copilot "ConfigForm numOrUndef yields floats → u16/u32 IPC deserialize fails" — ACCEPTED.
+    `Number("1.5")=1.5` would fail serde on the Rust side; switched to `Number.parseInt` and
+    clamp `port` to 0..65535.
+  - Copilot ×2 "PROGRESS.md vitest count off" — ACCEPTED (doc). Reconciled to the actual count.
+  Note: Codex/Copilot on a Tauri port are strong at surfacing IPC-type and JS-representation
+  bugs (float→uint, euros→cents) that the RN reference never had because RN typed the value
+  natively — these are *port-introduced* and worth accepting even though the SSOT is silent.
+- **Remote PR review (MACRO 7, PR #9) — second Copilot pass** after the fixes: 5 new polish
+  nits, all accepted (web-only, no SSOT bearing): download() revokes the object URL on the
+  next tick (+append/remove the anchor) so the browser starts the download first; money
+  `<input type=number>` gets `step="0.01"` (integers `step="1"`) so `6.50` isn't marked
+  invalid; the mock throws `new Error(...)` instead of raw strings; the sheet close "✕"
+  button gets `aria-label="Close"`. Codex re-raised the no-field-danger-confirm P2 a second
+  time — REJECTED again (SSOT `onPick` auto-runs it; a confirm dialog would diverge). Note:
+  GitHub re-anchors a bot's ORIGINAL review comments onto the newest commit, so already-fixed
+  items reappear in the comment list — dedupe by comment **id** (the first pass was ids
+  `35596…`, genuinely-new ones `35651…`) rather than assuming every listed comment is fresh.
+- Copilot also flagged `originalPreAuthCode: str(...) ?? ""` in the dispatcher as a "silent
+  empty default that can send an invalid incremental-auth / pre-auth-closure request" —
+  REJECTED: byte-identical to the RN reference SSOT, AND already unreachable via the UI
+  (the field is `required: true` in commands.ts, so the params sheet disables submit until
+  it is filled). The `?? ""` is only a type-satisfying fallback for the required backend
+  field. Lesson: a "missing required value" finding is moot when an upstream required-field
+  guard already blocks the empty case — verify the whole path before "hardening" a fallback.
 
 ## Legal
 - Public Nexi web docs are NOT free to republish; attribution ≠ license. Link the
